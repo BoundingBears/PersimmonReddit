@@ -77,6 +77,102 @@
 	--md-sys-color-scrim: #000000;
 }
 
+/* Twilight — blurple-navy dark, Discord-esque */
+:root[data-theme='twilight'] {
+	color-scheme: dark;
+	--md-sys-color-primary: #7289da;
+	--md-sys-color-on-primary: #ffffff;
+	--md-sys-color-primary-container: #4e5d94;
+	--md-sys-color-on-primary-container: #d6deff;
+	--md-sys-color-surface: #1a1b3a;
+	--md-sys-color-surface-dim: #15163a;
+	--md-sys-color-surface-bright: #383a6e;
+	--md-sys-color-surface-container-lowest: #131432;
+	--md-sys-color-surface-container-low: #1f2046;
+	--md-sys-color-surface-container: #25274d;
+	--md-sys-color-surface-container-high: #2f315a;
+	--md-sys-color-surface-container-highest: #393b67;
+	--md-sys-color-on-surface: #e0e2f5;
+	--md-sys-color-on-surface-variant: #b8bbd9;
+	--md-sys-color-outline: #8688a8;
+	--md-sys-color-outline-variant: #3e406b;
+	--md-sys-color-error: #ffb4ab;
+	--md-sys-color-on-error: #690005;
+	--md-sys-color-scrim: #000000;
+}
+
+/* Cream — warm sepia/paper light */
+:root[data-theme='cream'] {
+	color-scheme: light;
+	--md-sys-color-primary: #a16d3c;
+	--md-sys-color-on-primary: #ffffff;
+	--md-sys-color-primary-container: #f0d9b8;
+	--md-sys-color-on-primary-container: #3d250a;
+	--md-sys-color-surface: #fbf6e8;
+	--md-sys-color-surface-dim: #ddd5c2;
+	--md-sys-color-surface-bright: #fffdf2;
+	--md-sys-color-surface-container-lowest: #ffffff;
+	--md-sys-color-surface-container-low: #f7f0dc;
+	--md-sys-color-surface-container: #f4ecd8;
+	--md-sys-color-surface-container-high: #efe6cc;
+	--md-sys-color-surface-container-highest: #e9dfbf;
+	--md-sys-color-on-surface: #3a322a;
+	--md-sys-color-on-surface-variant: #5d544a;
+	--md-sys-color-outline: #8a8175;
+	--md-sys-color-outline-variant: #d3c9b6;
+	--md-sys-color-error: #b3261e;
+	--md-sys-color-on-error: #ffffff;
+	--md-sys-color-scrim: #000000;
+}
+
+/* Slate — vibrant dark purple/pink (formerly "Dracula") */
+:root[data-theme='slate'] {
+	color-scheme: dark;
+	--md-sys-color-primary: #ff79c6;
+	--md-sys-color-on-primary: #282a36;
+	--md-sys-color-primary-container: #bd93f9;
+	--md-sys-color-on-primary-container: #282a36;
+	--md-sys-color-surface: #282a36;
+	--md-sys-color-surface-dim: #282a36;
+	--md-sys-color-surface-bright: #44475a;
+	--md-sys-color-surface-container-lowest: #21222c;
+	--md-sys-color-surface-container-low: #343746;
+	--md-sys-color-surface-container: #3d4053;
+	--md-sys-color-surface-container-high: #44475a;
+	--md-sys-color-surface-container-highest: #4d5267;
+	--md-sys-color-on-surface: #f8f8f2;
+	--md-sys-color-on-surface-variant: #d4d4cf;
+	--md-sys-color-outline: #6272a4;
+	--md-sys-color-outline-variant: #44475a;
+	--md-sys-color-error: #ff5555;
+	--md-sys-color-on-error: #ffffff;
+	--md-sys-color-scrim: #000000;
+}
+
+/* Sunset — warm dark, peach & maroon */
+:root[data-theme='sunset'] {
+	color-scheme: dark;
+	--md-sys-color-primary: #f7a072;
+	--md-sys-color-on-primary: #4a200d;
+	--md-sys-color-primary-container: #c2522e;
+	--md-sys-color-on-primary-container: #ffd9c7;
+	--md-sys-color-surface: #2a1a1f;
+	--md-sys-color-surface-dim: #2a1a1f;
+	--md-sys-color-surface-bright: #4a3037;
+	--md-sys-color-surface-container-lowest: #1f1216;
+	--md-sys-color-surface-container-low: #311e25;
+	--md-sys-color-surface-container: #36232a;
+	--md-sys-color-surface-container-high: #402932;
+	--md-sys-color-surface-container-highest: #4a3037;
+	--md-sys-color-on-surface: #f4e3dc;
+	--md-sys-color-on-surface-variant: #d4baad;
+	--md-sys-color-outline: #a08378;
+	--md-sys-color-outline-variant: #5e3f47;
+	--md-sys-color-error: #ffb4ab;
+	--md-sys-color-on-error: #690005;
+	--md-sys-color-scrim: #000000;
+}
+
 html,
 body {
 	margin: 0;

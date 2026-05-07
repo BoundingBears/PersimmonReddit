@@ -6,7 +6,7 @@ import { Preferences } from '@capacitor/preferences';
 import { browser } from '$app/environment';
 import type { CommentSort, Sort } from '$lib/reddit/types';
 
-export type ThemeName = 'dark' | 'light' | 'amoled';
+export type ThemeName = 'dark' | 'light' | 'amoled' | 'cream' | 'slate' | 'sunset' | 'twilight';
 export type Layout = 'card' | 'compact' | 'gallery';
 // Home page can show Reddit's front-page sorted (hot/new/top/rising) OR the
 // user's merged subscribed feed. 'subscribed' is the source-toggle option
@@ -55,8 +55,11 @@ function createPrefs(): Writable<Prefs> & { ready: Promise<void>; reset: () => v
 		try {
 			const { value } = await Preferences.get({ key: STORAGE_KEY });
 			if (value) {
-				const parsed = JSON.parse(value) as Partial<Prefs>;
-				store.set({ ...DEFAULT_PREFS, ...parsed });
+				const parsed = JSON.parse(value) as Record<string, unknown>;
+				// Theme migrations: pre-release rename + removed themes.
+				if (parsed.theme === 'dracula') parsed.theme = 'slate';
+				else if (parsed.theme === 'nord') parsed.theme = 'dark';
+				store.set({ ...DEFAULT_PREFS, ...(parsed as Partial<Prefs>) });
 			}
 		} catch {
 			// fall through to defaults

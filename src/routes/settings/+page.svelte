@@ -3,12 +3,13 @@
 	import { Browser } from '@capacitor/browser';
 	import TopAppBar from '$lib/components/chrome/TopAppBar.svelte';
 	import Icon from '$lib/components/shared/Icon.svelte';
+	import Dropdown from '$lib/components/shared/Dropdown.svelte';
 	import { prefs, type Layout, type ThemeName } from '$lib/stores/prefs';
 	import { hidden } from '$lib/stores/hidden';
 	import { subscribed } from '$lib/stores/subscribed';
 	import { clearCache } from '$lib/reddit/client';
 
-	const themes: ThemeName[] = ['dark', 'light', 'amoled'];
+	const themes: ThemeName[] = ['dark', 'light', 'amoled', 'cream', 'slate', 'sunset', 'twilight'];
 	const layouts: Layout[] = ['card', 'compact', 'gallery'];
 	const accents = ['#d0bcff', '#9ccc65', '#ff8a65', '#4dd0e1', '#f48fb1', '#ffd54f'];
 
@@ -35,12 +36,10 @@
 	<section>
 		<h2>Appearance</h2>
 
-		<label class="row">
+		<div class="row">
 			<span>Theme</span>
-			<select bind:value={$prefs.theme}>
-				{#each themes as t}<option value={t}>{t}</option>{/each}
-			</select>
-		</label>
+			<Dropdown bind:value={$prefs.theme} options={themes} label="Theme" align="right" />
+		</div>
 
 		<div class="row">
 			<span>Accent</span>
@@ -58,12 +57,10 @@
 			</div>
 		</div>
 
-		<label class="row">
+		<div class="row">
 			<span>Default post layout</span>
-			<select bind:value={$prefs.layout}>
-				{#each layouts as l}<option value={l}>{l}</option>{/each}
-			</select>
-		</label>
+			<Dropdown bind:value={$prefs.layout} options={layouts} label="Layout" align="right" />
+		</div>
 	</section>
 
 	<section>
@@ -173,17 +170,9 @@
 	.row.toggle {
 		cursor: pointer;
 	}
-	select,
 	input[type='color'],
 	input[type='range'] {
 		font: inherit;
-	}
-	select {
-		background: var(--md-sys-color-surface-container);
-		color: var(--md-sys-color-on-surface);
-		border: 1px solid var(--md-sys-color-outline-variant);
-		border-radius: 8px;
-		padding: 4px 8px;
 	}
 	.accents {
 		display: flex;
