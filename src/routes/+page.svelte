@@ -1,13 +1,16 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import TopAppBar from '$lib/components/chrome/TopAppBar.svelte';
 	import FeedList from '$lib/components/feed/FeedList.svelte';
+	import Dropdown from '$lib/components/shared/Dropdown.svelte';
 	import Icon from '$lib/components/shared/Icon.svelte';
-	import { getSubmissions } from '$lib/reddit/endpoints';
+	import { getSubmissions, getMergedSubmissions } from '$lib/reddit/endpoints';
 	import { clearCache } from '$lib/reddit/client';
+	import { prefs, type HomeView } from '$lib/stores/prefs';
+	import { subscribed } from '$lib/stores/subscribed';
 	import { getFeedSnapshot, saveFeedSnapshot } from '$lib/stores/feedSnapshot';
-	import type { Post, Sort } from '$lib/reddit/types';
+	import type { Listing, Post, Sort } from '$lib/reddit/types';
 
 	const SNAPSHOT_KEY = 'home';
 
@@ -17,22 +20,60 @@
 	let after = $state<string | null>(snap?.after ?? null);
 	let loading = $state(false);
 	let error = $state<string | null>(null);
-	let sort = $state<Sort>((snap?.sort as Sort) ?? 'hot');
 	let restored = $state(!!snap);
 	let scrollRestored = $state(false);
+	let prefsReady = $state(false);
+
+	// Single source of truth for the dropdown is $prefs.homeView. Snapshot's
+	// `sort` field tracks whatever the user had selected last visit so we
+	// re-render the right cached posts on back-nav.
+	const homeViewOptions: ReadonlyArray<{ value: HomeView; label: string }> = [
+		{ value: 'hot', label: 'hot' },
+		{ value: 'new', label: 'new' },
+		{ value: 'top', label: 'top' },
+		{ value: 'rising', label: 'rising' },
+		{ value: 'subscribed', label: 'subscribed' }
+	];
+
+	onMount(async () => {
+		await prefs.ready;
+		prefsReady = true;
+	});
 
 	async function load(reset = false) {
 		if (loading) return;
+		const v = $prefs.homeView;
 		loading = true;
 		error = null;
 		try {
-			const r = await getSubmissions(sort, undefined, reset ? undefined : { after: after ?? undefined });
-			if (!r.ok) {
-				error = r.error.message;
-				return;
+			let listing: Listing<Post> | null = null;
+			if (v === 'subscribed') {
+				const subs = $subscribed.map((s) => s.name);
+				if (subs.length === 0) {
+					posts = [];
+					after = null;
+					return;
+				}
+				const r = await getMergedSubmissions(subs, 'hot', { limitPerSub: 25 });
+				if (!r.ok) {
+					error = r.error.message;
+					return;
+				}
+				listing = r.data;
+			} else {
+				const r = await getSubmissions(
+					v as Sort,
+					undefined,
+					reset ? undefined : { after: after ?? undefined }
+				);
+				if (!r.ok) {
+					error = r.error.message;
+					return;
+				}
+				listing = r.data;
 			}
-			posts = reset ? r.data.items : [...posts, ...r.data.items];
-			after = r.data.after;
+			posts = reset ? listing.items : [...posts, ...listing.items];
+			after = listing.after;
 		} catch (e) {
 			console.error('home load failed', e);
 			error = e instanceof Error ? e.message : String(e);
@@ -42,9 +83,10 @@
 	}
 
 	$effect(() => {
-		// On sort change re-fetch. On the very first run after a snapshot
-		// restore, skip — we already have the data the user was viewing.
-		sort;
+		// Gate first load on prefs hydration so we don't fetch front-page-hot
+		// briefly before switching to the user's persisted preference.
+		if (!prefsReady) return;
+		$prefs.homeView; // track for changes
 		untrack(() => {
 			if (restored) {
 				restored = false;
@@ -78,7 +120,12 @@
 	// beforeNavigate runs while the page is still mounted and scrolled.
 	beforeNavigate(() => {
 		if (typeof window === 'undefined' || posts.length === 0) return;
-		saveFeedSnapshot(SNAPSHOT_KEY, { posts, after, sort, scrollY: window.scrollY });
+		saveFeedSnapshot(SNAPSHOT_KEY, {
+			posts,
+			after,
+			sort: $prefs.homeView,
+			scrollY: window.scrollY
+		});
 	});
 
 	async function refresh() {
@@ -89,16 +136,16 @@
 		window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
 	}
 
-	const sorts: Sort[] = ['hot', 'new', 'top', 'rising'];
+	let subtitle = $derived(
+		$prefs.homeView === 'subscribed'
+			? `Subscribed · ${$subscribed.length} subs`
+			: `Front page · ${$prefs.homeView}`
+	);
 </script>
 
-<TopAppBar title="Persimmon" subtitle="Front page · {sort}">
+<TopAppBar title="Persimmon" {subtitle}>
 	{#snippet actions()}
-		<select class="sort" bind:value={sort} aria-label="Sort">
-			{#each sorts as s}
-				<option value={s}>{s}</option>
-			{/each}
-		</select>
+		<Dropdown bind:value={$prefs.homeView} options={homeViewOptions} label="Feed" />
 		<a href="/settings" class="iconbtn" aria-label="Settings"><Icon name="settings" size={22} /></a>
 	{/snippet}
 </TopAppBar>
@@ -110,24 +157,24 @@
 	</div>
 {/if}
 
-<FeedList
-	{posts}
-	{loading}
-	hasMore={after !== null}
-	feedKey={{ sort, after }}
-	onLoadMore={() => load(false)}
-	onRefresh={refresh}
-/>
+{#if $prefs.homeView === 'subscribed' && $subscribed.length === 0}
+	<div class="empty">
+		<p>You haven't subscribed to anything yet.</p>
+		<p>Bookmark subreddits from the Subs tab or any subreddit page; they'll show up here.</p>
+		<a class="cta" href="/subreddits">Discover subreddits</a>
+	</div>
+{:else}
+	<FeedList
+		{posts}
+		{loading}
+		hasMore={after !== null}
+		feedKey={{ sort: $prefs.homeView, after }}
+		onLoadMore={() => load(false)}
+		onRefresh={refresh}
+	/>
+{/if}
 
 <style>
-	.sort {
-		background: var(--md-sys-color-surface-container);
-		color: var(--md-sys-color-on-surface);
-		border: 1px solid var(--md-sys-color-outline-variant);
-		border-radius: 8px;
-		padding: 4px 8px;
-		font: inherit;
-	}
 	.iconbtn {
 		display: inline-flex;
 		align-items: center;
@@ -139,6 +186,23 @@
 	}
 	.iconbtn:active {
 		background: var(--md-sys-color-surface-container-highest);
+	}
+	.empty {
+		padding: 48px 24px;
+		text-align: center;
+		color: var(--md-sys-color-on-surface-variant);
+	}
+	.empty p {
+		margin: 0 0 12px;
+	}
+	.cta {
+		display: inline-block;
+		margin-top: 12px;
+		padding: 10px 20px;
+		background: var(--md-sys-color-primary);
+		color: var(--md-sys-color-on-primary);
+		border-radius: 24px;
+		font-weight: 500;
 	}
 	.error {
 		padding: 12px 16px;

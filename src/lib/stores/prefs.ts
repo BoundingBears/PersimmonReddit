@@ -8,6 +8,10 @@ import type { CommentSort, Sort } from '$lib/reddit/types';
 
 export type ThemeName = 'dark' | 'light' | 'amoled';
 export type Layout = 'card' | 'compact' | 'gallery';
+// Home page can show Reddit's front-page sorted (hot/new/top/rising) OR the
+// user's merged subscribed feed. 'subscribed' is the source-toggle option
+// folded into the same dropdown for simplicity.
+export type HomeView = Sort | 'subscribed';
 
 export interface Prefs {
 	theme: ThemeName;
@@ -15,6 +19,7 @@ export interface Prefs {
 	layout: Layout;
 	defaultSort: Sort;
 	defaultCommentSort: CommentSort;
+	homeView: HomeView; // remembered across launches
 	showNsfw: boolean;
 	blurNsfw: boolean;
 	lazyMode: boolean;
@@ -30,6 +35,7 @@ export const DEFAULT_PREFS: Prefs = {
 	layout: 'card',
 	defaultSort: 'hot',
 	defaultCommentSort: 'best',
+	homeView: 'hot',
 	showNsfw: false,
 	blurNsfw: true,
 	lazyMode: false,

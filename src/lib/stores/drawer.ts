@@ -1,66 +1,60 @@
 // Tiny global store for the navigation drawer's open state.
 // Any TopAppBar's hamburger flips this; <NavDrawer /> in the root layout reads it.
 //
-// The drawer also takes over the back gesture: opening pushes a marker
-// history entry so a hardware/gesture back closes the drawer instead of
-// navigating off the underlying page (mirrors imageViewer.ts's approach).
+// Drawer state is pure UI — it does NOT push a history entry. We let
+// @capacitor/app's backButton listener intercept the Android back gesture /
+// hardware back so a back press closes the drawer (when it's open) before
+// falling through to normal navigation. Coupling drawer state to the history
+// stack (the previous v1.0.2 design) caused desync between SvelteKit's
+// navigation tracking and the WebView's actual back-stack — which broke
+// `history.back()` from any route reached via the drawer.
 
 import { writable, get } from 'svelte/store';
 import { browser } from '$app/environment';
+import { App } from '@capacitor/app';
+import { IS_NATIVE } from '$lib/utils/platform';
 
 export const drawerOpen = writable(false);
 
-const DRAWER_MARKER = { persimmonDrawer: true };
-
-function isMarkerState(): boolean {
-	return browser && !!history.state && (history.state as { persimmonDrawer?: boolean }).persimmonDrawer === true;
-}
-
-function pushHistoryEntry() {
-	if (!browser) return;
-	history.pushState(DRAWER_MARKER, '', location.href);
-}
-
 export function openDrawer(): void {
-	if (get(drawerOpen)) return;
 	drawerOpen.set(true);
-	pushHistoryEntry();
 }
 
-// Standard close: X button, scrim tap, or programmatic close. Pops the marker
-// entry so the back-stack stays clean — popstate listener will flip the state.
 export function closeDrawer(): void {
-	if (!get(drawerOpen)) return;
-	if (isMarkerState()) {
-		history.back();
-	} else {
-		drawerOpen.set(false);
-	}
-}
-
-// Close-and-navigate: caller is about to push a new route. Don't pop the
-// marker (it'll race with the navigation); just clear visual state and let
-// the navigation use replaceState to overwrite the marker entry.
-export function dismissDrawerForNavigation(): void {
-	if (!get(drawerOpen)) return;
 	drawerOpen.set(false);
 }
 
 export function toggleDrawer(): void {
-	if (get(drawerOpen)) closeDrawer();
-	else openDrawer();
+	drawerOpen.update((v) => !v);
 }
 
-// Listens for the back gesture / hardware back. When the user pops away from
-// the marker entry (i.e. closes the drawer via gesture), flip drawerOpen so
-// the out-transition runs.
-export function installDrawerHistoryListener(): () => void {
-	if (!browser) return () => {};
-	const onPop = () => {
-		if (!isMarkerState() && get(drawerOpen)) {
+// On Android: register a backButton listener so the back gesture closes the
+// drawer when it's open, otherwise lets navigation proceed normally. On web,
+// this is a no-op — the drawer's back-gesture-closes behavior is native-only.
+export function installDrawerBackHandler(): () => void {
+	if (!browser || !IS_NATIVE) return () => {};
+
+	let removeFn: (() => void) | null = null;
+	let cancelled = false;
+
+	App.addListener('backButton', ({ canGoBack }) => {
+		if (get(drawerOpen)) {
 			drawerOpen.set(false);
+		} else if (canGoBack) {
+			window.history.back();
+		} else {
+			App.exitApp();
 		}
+	}).then((handle) => {
+		if (cancelled) {
+			handle.remove();
+		} else {
+			removeFn = () => handle.remove();
+		}
+	});
+
+	return () => {
+		cancelled = true;
+		removeFn?.();
 	};
-	window.addEventListener('popstate', onPop);
-	return () => window.removeEventListener('popstate', onPop);
 }

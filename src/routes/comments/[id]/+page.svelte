@@ -6,6 +6,7 @@
 	import PostDetail from '$lib/components/post/PostDetail.svelte';
 	import CommentTree from '$lib/components/comments/CommentTree.svelte';
 	import PullIndicator from '$lib/components/shared/PullIndicator.svelte';
+	import Dropdown from '$lib/components/shared/Dropdown.svelte';
 	import { getSubmissionComments } from '$lib/reddit/endpoints';
 	import { prefs } from '$lib/stores/prefs';
 	import { peekEntry } from '$lib/stores/history';
@@ -75,11 +76,7 @@
 	showBack
 >
 	{#snippet actions()}
-		<select class="sort" bind:value={sort} aria-label="Comment sort">
-			{#each sortOptions as s}
-				<option value={s}>{s}</option>
-			{/each}
-		</select>
+		<Dropdown bind:value={sort} options={sortOptions} label="Comment sort" />
 	{/snippet}
 </TopAppBar>
 
@@ -108,14 +105,6 @@
 		position: relative;
 		overscroll-behavior-y: contain;
 		touch-action: pan-y;
-	}
-	.sort {
-		background: var(--md-sys-color-surface-container);
-		color: var(--md-sys-color-on-surface);
-		border: 1px solid var(--md-sys-color-outline-variant);
-		border-radius: 8px;
-		padding: 4px 8px;
-		font: inherit;
 	}
 	.status {
 		padding: 32px 16px;

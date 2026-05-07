@@ -2,6 +2,7 @@
 	import { untrack } from 'svelte';
 	import TopAppBar from '$lib/components/chrome/TopAppBar.svelte';
 	import FeedList from '$lib/components/feed/FeedList.svelte';
+	import Dropdown from '$lib/components/shared/Dropdown.svelte';
 	import { getMergedSubmissions } from '$lib/reddit/endpoints';
 	import { clearCache } from '$lib/reddit/client';
 	import { subscribed } from '$lib/stores/subscribed';
@@ -54,11 +55,7 @@
 
 <TopAppBar title="Subscribed" subtitle="{$subscribed.length} subs · {sort}" showBack>
 	{#snippet actions()}
-		<select class="sort" bind:value={sort} aria-label="Sort">
-			{#each sorts as s}
-				<option value={s}>{s}</option>
-			{/each}
-		</select>
+		<Dropdown bind:value={sort} options={sorts} label="Sort" />
 	{/snippet}
 </TopAppBar>
 
@@ -78,14 +75,6 @@
 {/if}
 
 <style>
-	.sort {
-		background: var(--md-sys-color-surface-container);
-		color: var(--md-sys-color-on-surface);
-		border: 1px solid var(--md-sys-color-outline-variant);
-		border-radius: 8px;
-		padding: 4px 8px;
-		font: inherit;
-	}
 	.empty {
 		padding: 48px 24px;
 		text-align: center;

@@ -5,6 +5,7 @@
 	import TopAppBar from '$lib/components/chrome/TopAppBar.svelte';
 	import FeedList from '$lib/components/feed/FeedList.svelte';
 	import Icon from '$lib/components/shared/Icon.svelte';
+	import Dropdown from '$lib/components/shared/Dropdown.svelte';
 	import { getSubmissions, getSubreddit } from '$lib/reddit/endpoints';
 	import { clearCache } from '$lib/reddit/client';
 	import { subscribed } from '$lib/stores/subscribed';
@@ -116,11 +117,7 @@
 		<button class="iconbtn" onclick={toggleSub} aria-label={isSubbed ? 'Unsubscribe' : 'Subscribe'}>
 			<Icon name={isSubbed ? 'bookmark' : 'bookmark_border'} size={22} filled={isSubbed} />
 		</button>
-		<select class="sort" bind:value={sort} aria-label="Sort">
-			{#each sorts as s}
-				<option value={s}>{s}</option>
-			{/each}
-		</select>
+		<Dropdown bind:value={sort} options={sorts} label="Sort" />
 	{/snippet}
 </TopAppBar>
 
@@ -141,14 +138,6 @@
 />
 
 <style>
-	.sort {
-		background: var(--md-sys-color-surface-container);
-		color: var(--md-sys-color-on-surface);
-		border: 1px solid var(--md-sys-color-outline-variant);
-		border-radius: 8px;
-		padding: 4px 8px;
-		font: inherit;
-	}
 	.iconbtn {
 		display: inline-flex;
 		align-items: center;

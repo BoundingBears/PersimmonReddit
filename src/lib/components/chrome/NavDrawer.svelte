@@ -4,21 +4,14 @@
 	import { cubicOut } from 'svelte/easing';
 	import { goto } from '$app/navigation';
 	import Icon from '$lib/components/shared/Icon.svelte';
-	import {
-		drawerOpen,
-		closeDrawer,
-		dismissDrawerForNavigation,
-		installDrawerHistoryListener
-	} from '$lib/stores/drawer';
+	import { drawerOpen, closeDrawer, installDrawerBackHandler } from '$lib/stores/drawer';
 	import { subscribed } from '$lib/stores/subscribed';
 
-	onMount(() => installDrawerHistoryListener());
+	onMount(() => installDrawerBackHandler());
 
 	function go(path: string) {
-		// Don't pop the marker entry — replaceState below overwrites it so the
-		// back-stack ends up clean.
-		dismissDrawerForNavigation();
-		goto(path, { replaceState: true });
+		drawerOpen.set(false);
+		goto(path);
 	}
 
 	// Subscribed feed lives at /subscribed — Reddit's multireddit URL
