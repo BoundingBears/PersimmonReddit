@@ -14,6 +14,28 @@ Persimmon-chan is the (currently imaginary) friendly face of this little garden 
 
 ---
 
+## 🍊 Why Persimmon?
+
+In 2023, Reddit killed third-party apps. The pricing gutted Apollo overnight. Reddit is Fun went down with it. Sync. BaconReader. Boost. One by one, the apps that made browsing Reddit pleasant just… disappeared. The official Reddit app rushed in to fill the vacuum, and somehow, in a market suddenly free of competition, it managed to get worse.
+
+Open the official app on a fresh install and Reddit demands you log in before you can do anything. Tap a Reddit link from Discord or a tweet and a popup begs you to install the app — you already have it, doesn't matter, install it again. Try to read on the web instead and the page is buried under "Open in App" overlays, "Reddit Premium" splash screens, "create an account to continue", carousels of suggested communities you didn't ask for, ads stuffed between every other comment, and notification permission requests every time you breathe near the screen.
+
+I just wanted to read Reddit.
+
+No login. No account. No ads. No "are you sure you want to leave the app?" popups. No upsells. No carousels. No notifications. Just posts, comments, images, and the occasional cat picture. The thing Reddit used to feel like before someone in product decided every interaction needed to convert me into a daily-active-user statistic.
+
+So I built Persimmon. It reads Reddit the same way a web browser does — no account, no login, nothing to pay for. No ads, no telemetry, no premium tier, and no plans to add any. It costs me nothing to run; it costs you nothing to use.
+
+It's read-only on purpose. You can browse, search, bookmark subs, save images — everything you'd want as a reader. Posting, voting, and commenting still happen on Reddit's site or app. That's deliberate: as long as Persimmon is just reading a public website, Reddit can't kill it the way they killed the others.
+
+This is the **initial launch.** Persimmon currently ships as an Android APK you sideload from [GitHub Releases](https://github.com/BoundingBears/PersimmonReddit/releases) — that means downloading the file, tapping it, and ignoring Android's scary "this isn't from the Play Store" warning (it's signed, just not by Google). **iOS and Play Store releases are on the roadmap for the near future** — both are harder problems (Apple's $99/year tax, App Store and Play policies that have been hostile to anything Reddit-adjacent since 2023) but they're solvable, and I plan to make them come.
+
+If you've been mourning Apollo, side-eyeing the official app, or just want a Reddit reader that doesn't try to sell you anything — try Persimmon. Read Reddit like it's 2014 again.
+
+🌸 *(Also: I'm still looking for an artist to draw Persimmon-chan, the app's mascot. If you'd like to contribute some art, DM me — there's a [Ko-fi link](https://ko-fi.com/boundingbears) if you'd rather just throw a coffee at the project.)*
+
+---
+
 ## ✨ Features
 
 - 🎨 **Material 3 UI** — several themes with a custom accent picker
