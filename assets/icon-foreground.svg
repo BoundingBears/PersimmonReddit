@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Same diagonal design as icon-only.svg. Used as the adaptive-icon
+       foreground; fills the full canvas so launcher masks (circle, squircle,
+       rounded square) all crop cleanly through the diagonal. -->
+  <rect width="1024" height="1024" fill="#ED5D1F"/>
+  <polygon
+    fill="#4F8E2C"
+    points="1024,0 724,0 0,724 0,1024 300,1024 1024,300"
+  />
+</svg>

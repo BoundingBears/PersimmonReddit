@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Persimmon, sized and stylized for icon legibility at all densities.
+       The fruit sits in the central 624x624 safe zone with prominent leaves
+       above so the silhouette stays readable at 48dp. -->
+  <defs>
+    <linearGradient id="fruit" x1="20%" y1="15%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#FF8B47"/>
+      <stop offset="50%" stop-color="#EA4A1B"/>
+      <stop offset="100%" stop-color="#9E2010"/>
+    </linearGradient>
+    <linearGradient id="leaf" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6BBF5C"/>
+      <stop offset="100%" stop-color="#2D6E2A"/>
+    </linearGradient>
+    <radialGradient id="shine" cx="32%" cy="28%" r="30%">
+      <stop offset="0%" stop-color="#FFE0B5" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#FFE0B5" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Persimmon body — slightly flattened, dominant shape -->
+  <ellipse cx="512" cy="620" rx="295" ry="265" fill="url(#fruit)"/>
+  <!-- A subtle dimple at the top center where the calyx sits -->
+  <ellipse cx="512" cy="370" rx="220" ry="40" fill="#9E2010" opacity="0.35"/>
+  <!-- Highlight -->
+  <ellipse cx="420" cy="510" rx="115" ry="80" fill="url(#shine)"/>
+
+  <!-- Calyx: 4 bold leaves in a star pattern, sized so they read clearly even at 48px.
+       Each leaf is a stylized teardrop, ~180x150. -->
+  <g transform="translate(512, 360)">
+    <!-- Left leaf -->
+    <path d="M 0,0 Q -90,-30 -210,-30 Q -150,30 -50,40 Q -10,30 0,0 Z"
+          fill="url(#leaf)" stroke="#1F4F1B" stroke-width="6"/>
+    <!-- Right leaf (mirrored) -->
+    <path d="M 0,0 Q 90,-30 210,-30 Q 150,30 50,40 Q 10,30 0,0 Z"
+          fill="url(#leaf)" stroke="#1F4F1B" stroke-width="6"/>
+    <!-- Back-left leaf -->
+    <path d="M -10,-10 Q -50,-90 -150,-130 Q -110,-50 -50,-10 Q -20,-5 -10,-10 Z"
+          fill="url(#leaf)" stroke="#1F4F1B" stroke-width="6"/>
+    <!-- Back-right leaf (mirrored) -->
+    <path d="M 10,-10 Q 50,-90 150,-130 Q 110,-50 50,-10 Q 20,-5 10,-10 Z"
+          fill="url(#leaf)" stroke="#1F4F1B" stroke-width="6"/>
+  </g>
+
+  <!-- Stem (a small dark nub at the very top center) -->
+  <rect x="494" y="220" width="36" height="50" rx="10" fill="#3D2818"/>
+</svg>

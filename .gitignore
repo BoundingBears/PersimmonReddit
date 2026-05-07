@@ -1,0 +1,37 @@
+node_modules
+
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+/.svelte-kit
+/build
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.example
+!.env.test
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Build artifacts (don't commit signed/unsigned APKs from the project root)
+*.apk
+*.aab
+release/
+
+# Local image preview helpers — regenerated on demand by capacitor-assets
+assets/preview*.png
+assets/_p-*.png
+android/.idea/
+
+# IDE — keep editor-specific config out of the repo
+.vscode/
+.idea/

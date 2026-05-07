@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2732" height="2732" viewBox="0 0 2732 2732">
+  <!-- Splash uses the same diagonal flag scaled across the full canvas. -->
+  <rect width="2732" height="2732" fill="#ED5D1F"/>
+  <polygon
+    fill="#4F8E2C"
+    points="2732,0 1932,0 0,1932 0,2732 800,2732 2732,800"
+  />
+</svg>

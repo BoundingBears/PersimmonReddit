@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Persimmon-themed flag: solid orange field with a thick diagonal green
+       stripe running from the bottom-left corner to the top-right corner.
+       Geometry: stripe centered on the line x+y=1024, with perpendicular
+       half-offset d=300 on each side, which makes the green cover ~50% of the
+       canvas while leaving a 25% orange triangle in each opposing corner. -->
+  <rect width="1024" height="1024" fill="#ED5D1F"/>
+  <!-- Green band (hexagon clipped by the square). Vertices walk clockwise
+       starting at the top-right corner. -->
+  <polygon
+    fill="#4F8E2C"
+    points="1024,0 724,0 0,724 0,1024 300,1024 1024,300"
+  />
+</svg>
