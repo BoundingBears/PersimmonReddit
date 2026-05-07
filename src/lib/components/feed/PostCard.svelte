@@ -8,6 +8,8 @@
 	import { formatScore } from '$lib/utils/format';
 	import { prefs } from '$lib/stores/prefs';
 	import { sharePost } from '$lib/utils/share';
+	import { openPostActions } from '$lib/stores/postActions';
+	import { longPress } from '$lib/actions/longPress';
 	import type { Post } from '$lib/reddit/types';
 
 	interface Props {
@@ -31,7 +33,13 @@
 	}
 </script>
 
-<article class="card" onclick={open} onkeydown={(e) => e.key === 'Enter' && open()} tabindex="0">
+<article
+	class="card"
+	onclick={open}
+	onkeydown={(e) => e.key === 'Enter' && open()}
+	tabindex="0"
+	use:longPress={{ onLongPress: () => openPostActions(post) }}
+>
 	<header class="meta">
 		<SubredditChip name={post.subreddit} />
 		<span class="dot">·</span>

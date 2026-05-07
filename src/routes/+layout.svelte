@@ -4,10 +4,13 @@
 	import { onNavigate } from '$app/navigation';
 	import { initTheme } from '$lib/stores/theme';
 	import { startLazyScroll } from '$lib/utils/lazyScroll';
+	import { installDeepLinks } from '$lib/utils/installDeepLinks';
+	import { installBackHandler } from '$lib/utils/installBackHandler';
 	import { prefs } from '$lib/stores/prefs';
 	import BottomNav from '$lib/components/chrome/BottomNav.svelte';
 	import NavDrawer from '$lib/components/chrome/NavDrawer.svelte';
 	import ImageViewer from '$lib/components/shared/ImageViewer.svelte';
+	import PostActionSheet from '$lib/components/shared/PostActionSheet.svelte';
 	import Toast from '$lib/components/shared/Toast.svelte';
 
 	let { children } = $props();
@@ -62,11 +65,17 @@
 
 	onMount(() => {
 		initTheme();
-		const stop = startLazyScroll(
+		const stopLazy = startLazyScroll(
 			() => $prefs.lazyMode,
 			() => $prefs.lazyModePxPerSec
 		);
-		return stop;
+		const stopDeepLinks = installDeepLinks();
+		const stopBack = installBackHandler();
+		return () => {
+			stopLazy();
+			stopDeepLinks();
+			stopBack();
+		};
 	});
 </script>
 
@@ -83,6 +92,7 @@
 
 <NavDrawer />
 <ImageViewer />
+<PostActionSheet />
 <Toast />
 
 <style>

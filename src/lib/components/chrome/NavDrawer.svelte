@@ -1,13 +1,11 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
 	import { goto } from '$app/navigation';
 	import Icon from '$lib/components/shared/Icon.svelte';
-	import { drawerOpen, closeDrawer, installDrawerBackHandler } from '$lib/stores/drawer';
+	import { drawerOpen, closeDrawer } from '$lib/stores/drawer';
 	import { subscribed } from '$lib/stores/subscribed';
-
-	onMount(() => installDrawerBackHandler());
+	import { hidden } from '$lib/stores/hidden';
 
 	function go(path: string) {
 		drawerOpen.set(false);
@@ -88,6 +86,12 @@
 				<Icon name="search" size={20} />
 				<span>Search</span>
 			</button>
+			{#if $hidden.size > 0}
+				<button class="row" onclick={() => go('/hidden')}>
+					<Icon name="visibility_off" size={20} />
+					<span>Hidden posts ({$hidden.size})</span>
+				</button>
+			{/if}
 			<button class="row" onclick={() => go('/settings')}>
 				<Icon name="settings" size={20} />
 				<span>Settings</span>

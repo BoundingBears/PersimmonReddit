@@ -8,6 +8,8 @@
 	import { hidden } from '$lib/stores/hidden';
 	import { sharePost, copyLink } from '$lib/utils/share';
 	import { tick as haptic } from '$lib/utils/haptics';
+	import { pushToast } from '$lib/stores/toast';
+	import { hiddenMetaFromPost } from '$lib/utils/hiddenMeta';
 	import type { Post } from '$lib/reddit/types';
 
 	interface Props {
@@ -27,9 +29,19 @@
 	}
 
 	function toggleHide() {
-		if ($hidden.has(post.id)) hidden.unhide(post.id);
-		else hidden.hide(post.id);
-		haptic();
+		const id = post.id;
+		if ($hidden.has(id)) {
+			hidden.unhide(id);
+			haptic();
+			pushToast('Post is unhidden');
+		} else {
+			hidden.hide(id, hiddenMetaFromPost(post));
+			haptic();
+			pushToast('Post is hidden', {
+				duration: 5000,
+				action: { label: 'UNDO', onClick: () => hidden.unhide(id) }
+			});
+		}
 	}
 </script>
 

@@ -1,18 +1,12 @@
 // Tiny global store for the navigation drawer's open state.
 // Any TopAppBar's hamburger flips this; <NavDrawer /> in the root layout reads it.
 //
-// Drawer state is pure UI — it does NOT push a history entry. We let
-// @capacitor/app's backButton listener intercept the Android back gesture /
-// hardware back so a back press closes the drawer (when it's open) before
-// falling through to normal navigation. Coupling drawer state to the history
-// stack (the previous v1.0.2 design) caused desync between SvelteKit's
-// navigation tracking and the WebView's actual back-stack — which broke
-// `history.back()` from any route reached via the drawer.
+// Drawer state is pure UI — no history manipulation. The Android back-gesture
+// behavior (back closes the drawer when open, otherwise navigates) is handled
+// centrally by the Capacitor `App.backButton` listener in +layout.svelte
+// alongside the post-action-sheet and image-viewer overlays.
 
-import { writable, get } from 'svelte/store';
-import { browser } from '$app/environment';
-import { App } from '@capacitor/app';
-import { IS_NATIVE } from '$lib/utils/platform';
+import { writable } from 'svelte/store';
 
 export const drawerOpen = writable(false);
 
@@ -26,35 +20,4 @@ export function closeDrawer(): void {
 
 export function toggleDrawer(): void {
 	drawerOpen.update((v) => !v);
-}
-
-// On Android: register a backButton listener so the back gesture closes the
-// drawer when it's open, otherwise lets navigation proceed normally. On web,
-// this is a no-op — the drawer's back-gesture-closes behavior is native-only.
-export function installDrawerBackHandler(): () => void {
-	if (!browser || !IS_NATIVE) return () => {};
-
-	let removeFn: (() => void) | null = null;
-	let cancelled = false;
-
-	App.addListener('backButton', ({ canGoBack }) => {
-		if (get(drawerOpen)) {
-			drawerOpen.set(false);
-		} else if (canGoBack) {
-			window.history.back();
-		} else {
-			App.exitApp();
-		}
-	}).then((handle) => {
-		if (cancelled) {
-			handle.remove();
-		} else {
-			removeFn = () => handle.remove();
-		}
-	});
-
-	return () => {
-		cancelled = true;
-		removeFn?.();
-	};
 }

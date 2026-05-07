@@ -29,6 +29,9 @@
 	--md-sys-color-error: #f2b8b5;
 	--md-sys-color-on-error: #601410;
 	--md-sys-color-scrim: #000000;
+	--md-sys-color-inverse-surface: #e6e0e9;
+	--md-sys-color-inverse-on-surface: #322f35;
+	--md-sys-color-inverse-primary: #6750a4;
 }
 
 :root[data-theme='light'] {
@@ -52,6 +55,9 @@
 	--md-sys-color-error: #b3261e;
 	--md-sys-color-on-error: #ffffff;
 	--md-sys-color-scrim: #000000;
+	--md-sys-color-inverse-surface: #322f35;
+	--md-sys-color-inverse-on-surface: #f5eff7;
+	--md-sys-color-inverse-primary: #d0bcff;
 }
 
 :root[data-theme='amoled'] {
@@ -75,6 +81,9 @@
 	--md-sys-color-error: #f2b8b5;
 	--md-sys-color-on-error: #601410;
 	--md-sys-color-scrim: #000000;
+	--md-sys-color-inverse-surface: #e6e0e9;
+	--md-sys-color-inverse-on-surface: #000000;
+	--md-sys-color-inverse-primary: #6750a4;
 }
 
 /* Twilight — blurple-navy dark, Discord-esque */
@@ -99,6 +108,9 @@
 	--md-sys-color-error: #ffb4ab;
 	--md-sys-color-on-error: #690005;
 	--md-sys-color-scrim: #000000;
+	--md-sys-color-inverse-surface: #e0e2f5;
+	--md-sys-color-inverse-on-surface: #1a1b3a;
+	--md-sys-color-inverse-primary: #4e5d94;
 }
 
 /* Cream — warm sepia/paper light */
@@ -123,6 +135,9 @@
 	--md-sys-color-error: #b3261e;
 	--md-sys-color-on-error: #ffffff;
 	--md-sys-color-scrim: #000000;
+	--md-sys-color-inverse-surface: #3a322a;
+	--md-sys-color-inverse-on-surface: #f4ecd8;
+	--md-sys-color-inverse-primary: #f0d9b8;
 }
 
 /* Slate — vibrant dark purple/pink (formerly "Dracula") */
@@ -147,6 +162,9 @@
 	--md-sys-color-error: #ff5555;
 	--md-sys-color-on-error: #ffffff;
 	--md-sys-color-scrim: #000000;
+	--md-sys-color-inverse-surface: #f8f8f2;
+	--md-sys-color-inverse-on-surface: #282a36;
+	--md-sys-color-inverse-primary: #bd93f9;
 }
 
 /* Sunset — warm dark, peach & maroon */
@@ -171,6 +189,9 @@
 	--md-sys-color-error: #ffb4ab;
 	--md-sys-color-on-error: #690005;
 	--md-sys-color-scrim: #000000;
+	--md-sys-color-inverse-surface: #f4e3dc;
+	--md-sys-color-inverse-on-surface: #2a1a1f;
+	--md-sys-color-inverse-primary: #c2522e;
 }
 
 html,

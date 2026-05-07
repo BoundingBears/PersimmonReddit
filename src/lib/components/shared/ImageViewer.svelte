@@ -1,63 +1,37 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { CapacitorHttp } from '@capacitor/core';
-	import { Filesystem, Directory } from '@capacitor/filesystem';
 	import { Share } from '@capacitor/share';
 	import { Browser } from '@capacitor/browser';
 	import Icon from './Icon.svelte';
 	import { viewerState, closeViewer, installViewerHistoryListener } from '$lib/stores/imageViewer';
 	import { IS_NATIVE } from '$lib/utils/platform';
+	import { saveImage } from '$lib/utils/saveImage';
+	import { pinchZoom } from '$lib/actions/pinchZoom';
 
 	onMount(() => installViewerHistoryListener());
 
+	// Lock body scroll while the viewer is open so the underlying feed/post
+	// can't be scrolled or interacted with through the scrim.
+	$effect(() => {
+		if (!$viewerState) return;
+		const previous = document.body.style.overflow;
+		document.body.style.overflow = 'hidden';
+		return () => {
+			document.body.style.overflow = previous;
+		};
+	});
+
 	let saving = $state(false);
 	let saveStatus = $state<string | null>(null);
-
-	function fileNameFromUrl(url: string): string {
-		try {
-			const u = new URL(url);
-			const last = u.pathname.split('/').filter(Boolean).pop() ?? 'image';
-			// Strip query suffixes glued onto extensions (?width=...&fmt=...)
-			return last.split('?')[0].split('#')[0] || `persimmon-${Date.now()}`;
-		} catch {
-			return `persimmon-${Date.now()}`;
-		}
-	}
 
 	async function save() {
 		if (!$viewerState || saving) return;
 		saving = true;
 		saveStatus = 'Saving…';
-		try {
-			if (!IS_NATIVE) {
-				// Web fallback: open in a new tab so the user can right-click → save.
-				window.open($viewerState.url, '_blank', 'noopener');
-				saveStatus = 'Opened in browser';
-				return;
-			}
-			// Fetch raw bytes via native HTTP (CapacitorHttp can return base64 for blobs).
-			const res = await CapacitorHttp.get({
-				url: $viewerState.url,
-				headers: { Referer: 'https://www.reddit.com' },
-				responseType: 'blob'
-			});
-			if (res.status < 200 || res.status >= 300) throw new Error(`HTTP ${res.status}`);
-			// CapacitorHttp returns base64 in `data` for blob responseType.
-			const filename = fileNameFromUrl($viewerState.url);
-			await Filesystem.writeFile({
-				path: `Persimmon/${filename}`,
-				data: res.data as string,
-				directory: Directory.Documents,
-				recursive: true
-			});
-			saveStatus = `Saved to Documents/Persimmon/${filename}`;
-		} catch (e) {
-			console.error('image save failed', e);
-			saveStatus = `Save failed: ${e instanceof Error ? e.message : String(e)}`;
-		} finally {
-			saving = false;
-			setTimeout(() => (saveStatus = null), 3000);
-		}
+		const res = await saveImage($viewerState.url);
+		saveStatus = res.message;
+		saving = false;
+		setTimeout(() => (saveStatus = null), 3000);
 	}
 
 	async function share() {
@@ -116,6 +90,7 @@
 					src={$viewerState.url}
 					alt={$viewerState.alt ?? ''}
 					referrerpolicy="no-referrer"
+					use:pinchZoom={{ minScale: 1, maxScale: 4 }}
 				/>
 			{/if}
 		</div>
@@ -170,8 +145,7 @@
 		align-items: center;
 		justify-content: center;
 		padding: 8px;
-		overflow: auto;
-		touch-action: pinch-zoom;
+		overflow: hidden;
 	}
 	.media img,
 	.media video {
@@ -179,6 +153,15 @@
 		max-height: 100%;
 		object-fit: contain;
 		display: block;
+	}
+	.media img {
+		/* Pinch/pan/double-tap are all handled in JS via the pinchZoom action.
+		   Disable native gesture handling so the browser doesn't fight us. */
+		touch-action: none;
+		transform-origin: center;
+		will-change: transform;
+		user-select: none;
+		-webkit-user-drag: none;
 	}
 	.toast {
 		position: absolute;

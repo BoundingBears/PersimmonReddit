@@ -16,13 +16,13 @@ Persimmon-chan is the (currently imaginary) friendly face of this little garden 
 
 ## ✨ Features
 
-- 🎨 **Material 3 UI** — light / dark / AMOLED themes with a custom accent picker
+- 🎨 **Material 3 UI** — several themes with a custom accent picker
 - 📐 **Three feed layouts** — card, compact, gallery — switchable from settings
-- 🍊 **Subscribed feed** that merges all your bookmarked subreddits into one tidy round-robin'd timeline (no Reddit account, no OAuth — bookmarks live on your device)
+- 🍊 **Subscribed feed** that merges all your bookmarked subreddits into one
 - 🔄 **Pull to refresh** on every feed, with a proper indicator and gesture haptics
-- 🖼️ **In-app image / video lightbox** with save & share buttons. Tapping a media link in a comment opens it inline; back gesture closes the viewer without leaving the post
-- 💫 **Smart navigation** — iOS-style page transitions, scroll-position restoration when you back-gesture out of a post, bottom-tab spam doesn't pollute history
-- 🌱 **No bullshit** — public Reddit JSON feeds, no telemetry, never any ads
+- 🖼️ **In-app image / video lightbox** with save & share buttons
+- 💫 **Smart navigation** — smooth transitions, scroll-position restoration when you back-gesture out of a post, bottom-tab spam doesn't pollute history
+- 🌱 **Privacy is policy** — public Reddit JSON feeds, no telemetry, never any ads
 
 ## 🌿 Read-only — by design
 

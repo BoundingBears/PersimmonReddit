@@ -2,6 +2,8 @@
 	import { goto } from '$app/navigation';
 	import Icon from '$lib/components/shared/Icon.svelte';
 	import { prefs } from '$lib/stores/prefs';
+	import { openPostActions } from '$lib/stores/postActions';
+	import { longPress } from '$lib/actions/longPress';
 	import type { Post } from '$lib/reddit/types';
 
 	interface Props {
@@ -19,7 +21,12 @@
 	}
 </script>
 
-<button class="tile" onclick={open} aria-label={post.title}>
+<button
+	class="tile"
+	onclick={open}
+	aria-label={post.title}
+	use:longPress={{ onLongPress: () => openPostActions(post) }}
+>
 	{#if thumb}
 		<img src={thumb} alt="" loading="lazy" referrerpolicy="no-referrer" class:blur />
 	{:else}

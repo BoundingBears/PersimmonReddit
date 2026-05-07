@@ -4,6 +4,8 @@
 	import RelativeTime from '$lib/components/shared/RelativeTime.svelte';
 	import { formatScore } from '$lib/utils/format';
 	import { prefs } from '$lib/stores/prefs';
+	import { openPostActions } from '$lib/stores/postActions';
+	import { longPress } from '$lib/actions/longPress';
 	import type { Post } from '$lib/reddit/types';
 
 	interface Props {
@@ -21,7 +23,13 @@
 	}
 </script>
 
-<article class="row" onclick={open} onkeydown={(e) => e.key === 'Enter' && open()} tabindex="0">
+<article
+	class="row"
+	onclick={open}
+	onkeydown={(e) => e.key === 'Enter' && open()}
+	tabindex="0"
+	use:longPress={{ onLongPress: () => openPostActions(post) }}
+>
 	<div class="thumb" class:blur>
 		{#if thumb}
 			<img src={thumb} alt="" loading="lazy" referrerpolicy="no-referrer" />

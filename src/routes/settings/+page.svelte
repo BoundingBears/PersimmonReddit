@@ -110,7 +110,11 @@
 
 	<section>
 		<h2>Storage</h2>
-		<button class="action" onclick={() => hidden.clear()}>Clear hidden posts ({$hidden.size})</button>
+		<a class="action" href="/hidden">
+			<Icon name="visibility_off" size={18} />
+			<span>Hidden posts</span>
+			<span class="action-meta">{$hidden.size}</span>
+		</a>
 		<button class="action" onclick={() => subscribed.clear()}>Clear subscribed ({$subscribed.length})</button>
 		<button class="action" onclick={() => clearCache()}>Clear in-memory cache</button>
 		<button class="action danger" onclick={() => prefs.reset()}>Reset all preferences</button>
