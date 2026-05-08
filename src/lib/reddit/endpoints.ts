@@ -75,8 +75,15 @@ export async function getMergedSubmissions(
 	const failures: string[] = [];
 	for (let i = 0; i < results.length; i++) {
 		const r = results[i];
-		if (r.ok) lists.push(r.data.items);
-		else failures.push(subs[i]);
+		if (r.ok) {
+			// Drop stickied posts from merged feeds — they're useful on an
+			// individual sub's page (mod announcements specific to that sub),
+			// but in a round-robin merge across N subs they pile up at the
+			// top as weeks-old noise.
+			lists.push(r.data.items.filter((p) => !p.stickied));
+		} else {
+			failures.push(subs[i]);
+		}
 	}
 
 	let merged: Post[];

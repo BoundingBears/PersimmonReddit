@@ -87,6 +87,12 @@
 		// briefly before switching to the user's persisted preference.
 		if (!prefsReady) return;
 		$prefs.homeView; // track for changes
+		// Also track $subscribed when in subscribed mode — without this, if
+		// the subscribed store hydrates from preferences AFTER the first
+		// effect run, the empty-subs early-return at the top of load() leaves
+		// posts=[] forever and the user sees "No posts" until the app is
+		// fully restarted.
+		if ($prefs.homeView === 'subscribed') $subscribed;
 		untrack(() => {
 			if (restored) {
 				restored = false;
@@ -96,6 +102,21 @@
 			after = null;
 			load(true);
 		});
+	});
+
+	// Refresh when the app comes back from a long background — Reddit
+	// session cookies can lapse, network state may have flipped, and stale
+	// stores may have been re-hydrated mid-effect.
+	onMount(() => {
+		const onVisible = () => {
+			if (document.visibilityState !== 'visible') return;
+			if (loading) return;
+			// Only auto-refresh when we have nothing to show; don't blow away
+			// posts the user is currently scrolling through.
+			if (posts.length === 0) load(true);
+		};
+		document.addEventListener('visibilitychange', onVisible);
+		return () => document.removeEventListener('visibilitychange', onVisible);
 	});
 
 	// afterNavigate runs after the route transition (including the View

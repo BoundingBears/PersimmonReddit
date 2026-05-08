@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import TopAppBar from '$lib/components/chrome/TopAppBar.svelte';
 	import FeedList from '$lib/components/feed/FeedList.svelte';
 	import Dropdown from '$lib/components/shared/Dropdown.svelte';
@@ -49,6 +49,19 @@
 		await load();
 		window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
 	}
+
+	// Refresh on resume from background — Reddit session cookies can lapse,
+	// network state may have flipped, etc. Only auto-refresh when nothing's
+	// showing so we don't disrupt active scrolling.
+	onMount(() => {
+		const onVisible = () => {
+			if (document.visibilityState !== 'visible') return;
+			if (loading) return;
+			if (posts.length === 0 && $subscribed.length > 0) load();
+		};
+		document.addEventListener('visibilitychange', onVisible);
+		return () => document.removeEventListener('visibilitychange', onVisible);
+	});
 
 	const sorts: Sort[] = ['hot', 'new', 'top'];
 </script>
