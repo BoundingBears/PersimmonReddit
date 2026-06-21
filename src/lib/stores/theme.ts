@@ -31,9 +31,11 @@ function statusBarBg(theme: ThemeName): string {
 	}
 }
 
-function applyTheme(theme: ThemeName, accent: string): void {
+function applyTheme(theme: ThemeName, accent: string, fontScale: number): void {
 	if (!browser) return;
 	document.documentElement.setAttribute('data-theme', theme);
+	// Reading-text size multiplier (calc(<px> * var(--font-scale)) on surfaces).
+	document.documentElement.style.setProperty('--font-scale', String(fontScale || 1));
 	// Only override the theme's natural primary when the user has explicitly
 	// picked a custom accent. Otherwise each theme shows its signature primary
 	// (Twilight's blurple, Cream's coffee-tan, Nord's frost-blue, etc.).
@@ -61,6 +63,6 @@ export function initTheme(): void {
 		StatusBar.setOverlaysWebView({ overlay: false }).catch(() => undefined);
 	}
 	prefs.subscribe((v) => {
-		applyTheme(v.theme, v.accent);
+		applyTheme(v.theme, v.accent, v.fontScale);
 	});
 }

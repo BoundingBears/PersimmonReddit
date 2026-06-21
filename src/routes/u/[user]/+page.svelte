@@ -48,15 +48,34 @@
 		untrack(() => loadProfile());
 	});
 
+	let restoring = $state(false);
+
 	$effect(() => {
 		username;
 		tab;
 		untrack(() => {
+			if (restoring) {
+				restoring = false;
+				return;
+			}
 			items = [];
 			after = null;
 			loadFeed(true);
 		});
 	});
+
+	// Persist tab + items across navigations so swiping back lands on the
+	// same tab and scroll position the user left from, matching the peek.
+	type Snap = { tab: typeof tab; items: typeof items; after: typeof after };
+	export const snapshot = {
+		capture: (): Snap => ({ tab, items, after }),
+		restore: (v: Snap) => {
+			restoring = true;
+			tab = v.tab;
+			items = v.items;
+			after = v.after;
+		}
+	};
 </script>
 
 <TopAppBar title="u/{username}" subtitle={user ? `${formatScore(user.totalKarma)} karma` : ''} showBack />

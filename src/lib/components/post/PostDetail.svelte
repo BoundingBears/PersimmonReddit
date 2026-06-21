@@ -6,10 +6,12 @@
 	import PostMedia from './PostMedia.svelte';
 	import { formatScore } from '$lib/utils/format';
 	import { hidden } from '$lib/stores/hidden';
+	import { saved } from '$lib/stores/saved';
 	import { sharePost, copyLink } from '$lib/utils/share';
 	import { tick as haptic } from '$lib/utils/haptics';
 	import { pushToast } from '$lib/stores/toast';
 	import { hiddenMetaFromPost } from '$lib/utils/hiddenMeta';
+	import { savedMetaFromPost } from '$lib/utils/savedMeta';
 	import type { Post } from '$lib/reddit/types';
 
 	interface Props {
@@ -26,6 +28,22 @@
 
 	function onCopy() {
 		copyLink(permalink);
+	}
+
+	function toggleSave() {
+		const id = post.id;
+		if ($saved.has(id)) {
+			saved.unsave(id);
+			haptic();
+			pushToast('Removed from saved');
+		} else {
+			saved.save(id, savedMetaFromPost(post));
+			haptic();
+			pushToast('Saved', {
+				duration: 5000,
+				action: { label: 'UNDO', onClick: () => saved.unsave(id) }
+			});
+		}
 	}
 
 	function toggleHide() {
@@ -46,30 +64,31 @@
 </script>
 
 <article class="detail">
-	{#if post.kind === 'crosspost' && post.crosspost}
-		<div class="crosspost-banner">
-			<Icon name="forward" size={16} />
-			<span>Crossposted from <a href="/r/{post.crosspost.subreddit}">r/{post.crosspost.subreddit}</a></span>
-		</div>
-	{/if}
+	<h1 class="title">{post.title}</h1>
 
-	<div class="meta">
+	<div class="byline">
 		<UserChip name={post.author} />
 		<span class="dot">·</span>
 		<RelativeTime ts={post.createdUtc} />
+		{#if post.flair?.text}
+			<span class="dot">·</span>
+			<span class="flair">{post.flair.text}</span>
+		{/if}
 	</div>
 
-	<h1 class="title">{post.title}</h1>
-
-	{#if post.flair?.text || post.over18 || post.spoiler || post.locked || post.archived}
+	{#if post.over18 || post.spoiler || post.locked || post.archived}
 		<div class="flairs">
-			{#if post.flair?.text}
-				<span class="flair">{post.flair.text}</span>
-			{/if}
 			{#if post.over18}<span class="flair nsfw">NSFW</span>{/if}
 			{#if post.spoiler}<span class="flair spoiler">SPOILER</span>{/if}
 			{#if post.locked}<span class="flair locked"><Icon name="lock" size={12} /> LOCKED</span>{/if}
 			{#if post.archived}<span class="flair archived">ARCHIVED</span>{/if}
+		</div>
+	{/if}
+
+	{#if post.kind === 'crosspost' && post.crosspost}
+		<div class="crosspost-banner">
+			<Icon name="forward" size={16} />
+			<span>Crossposted from <a href="/r/{post.crosspost.subreddit}">r/{post.crosspost.subreddit}</a></span>
 		</div>
 	{/if}
 
@@ -82,6 +101,14 @@
 			{formatScore(post.numComments)}
 		</span>
 		<span class="spacer"></span>
+		<button
+			class="btn"
+			class:active={$saved.has(post.id)}
+			onclick={toggleSave}
+			aria-label={$saved.has(post.id) ? 'Remove from saved' : 'Save'}
+		>
+			<Icon name="bookmark" size={20} filled={$saved.has(post.id)} />
+		</button>
 		<button class="btn" onclick={toggleHide} aria-label={$hidden.has(post.id) ? 'Unhide' : 'Hide'}>
 			<Icon name={$hidden.has(post.id) ? 'visibility' : 'visibility_off'} size={20} />
 		</button>
@@ -102,19 +129,21 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 6px;
-		padding: 8px 16px 0;
+		padding: 0 16px;
 		font-size: 12px;
 		color: var(--md-sys-color-on-surface-variant);
 	}
 	.crosspost-banner a {
 		color: var(--md-sys-color-primary);
 	}
-	.meta {
+	/* Single quiet byline under the title: author · time · flair. */
+	.byline {
 		display: flex;
 		align-items: center;
+		flex-wrap: wrap;
 		gap: 6px;
 		padding: 0 16px;
-		font-size: 12px;
+		font-size: 13px;
 		color: var(--md-sys-color-on-surface-variant);
 	}
 	.dot {
@@ -122,10 +151,11 @@
 	}
 	.title {
 		margin: 0;
-		padding: 0 16px;
-		font-size: 18px;
-		font-weight: 500;
+		padding: 12px 16px 0;
+		font-size: calc(20px * var(--font-scale));
+		font-weight: 600;
 		line-height: 1.3;
+		letter-spacing: -0.01em;
 	}
 	.flairs {
 		display: flex;
@@ -175,5 +205,8 @@
 	}
 	.btn:active {
 		background: var(--md-sys-color-surface-container-high);
+	}
+	.btn.active {
+		color: var(--md-sys-color-primary);
 	}
 </style>

@@ -61,6 +61,16 @@ export const hidden = {
 			return next;
 		});
 	},
+	// Bulk-load entries from a backup import, preserving their hiddenAt stamps.
+	hydrate(entries: HiddenEntry[], mode: 'merge' | 'replace'): void {
+		internal.update((m) => {
+			const next = mode === 'replace' ? new Map<string, HiddenEntry>() : new Map(m);
+			for (const e of entries) {
+				if (e && typeof e.id === 'string') next.set(e.id, e);
+			}
+			return next;
+		});
+	},
 	clear(): void {
 		internal.set(new Map());
 	}

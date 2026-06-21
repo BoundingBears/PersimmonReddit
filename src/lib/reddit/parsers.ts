@@ -2,6 +2,7 @@
 // these parsers and consume normalized values from types.ts.
 
 import { detectKind, isPlaceholderThumbnail, type RawPost } from './media';
+import { IS_IOS } from '$lib/utils/platform';
 import type {
 	Comment,
 	CommentNode,
@@ -11,6 +12,7 @@ import type {
 	MoreStub,
 	Post,
 	Subreddit,
+	SubredditRule,
 	User
 } from './types';
 
@@ -205,6 +207,9 @@ export function parsePostListing(raw: RawListing<any>): Listing<Post> {
 	const items: Post[] = [];
 	for (const child of raw.data.children) {
 		if (child.kind !== 't3') continue;
+		// Drop NSFW posts upstream on iOS so they never reach any feed,
+		// search result, or user-overview surface. App Store policy.
+		if (IS_IOS && child.data?.over_18) continue;
 		try {
 			items.push(parsePost(child.data));
 		} catch (e) {
@@ -290,12 +295,27 @@ export function parseSubreddit(raw: RawSubreddit): Subreddit {
 	};
 }
 
+// Shape of /r/<sub>/about/rules.json — { rules: [...], site_rules: [...] }.
+export function parseSubredditRules(raw: {
+	rules?: Array<Record<string, unknown>>;
+}): SubredditRule[] {
+	const rules = Array.isArray(raw?.rules) ? raw.rules : [];
+	return rules.map((r) => ({
+		shortName: (r.short_name as string) || (r.violation_reason as string) || 'Rule',
+		description: (r.description as string) || undefined,
+		descriptionHtml: r.description_html ? decodeEntities(r.description_html as string) : undefined,
+		violationReason: (r.violation_reason as string) || undefined,
+		createdUtc: typeof r.created_utc === 'number' ? r.created_utc : undefined
+	}));
+}
+
 export function parseSubredditListing(raw: RawListing<RawSubreddit>): Listing<Subreddit> {
 	return {
 		after: raw.data.after,
 		before: raw.data.before,
 		items: raw.data.children
 			.filter((c) => c.kind === 't5')
+			.filter((c) => !(IS_IOS && c.data?.over18))
 			.map((c) => parseSubreddit(c.data))
 	};
 }
@@ -320,6 +340,9 @@ export function parseUserOverview(
 ): Listing<{ kind: 'post'; post: Post } | { kind: 'comment'; comment: Comment }> {
 	const items: Array<{ kind: 'post'; post: Post } | { kind: 'comment'; comment: Comment }> = [];
 	for (const c of raw.data.children) {
+		// On iOS, drop NSFW posts and any comments made on NSFW posts (raw.over_18
+		// is set on comment children too, reflecting the parent submission's flag).
+		if (IS_IOS && c.data?.over_18) continue;
 		if (c.kind === 't3') items.push({ kind: 'post', post: parsePost(c.data) });
 		else if (c.kind === 't1') {
 			const parsed = parseComment(c, 0);

@@ -30,19 +30,21 @@
 	<GalleryView items={target.gallery} nsfw={target.over18} />
 {:else if target.kind === 'embed' && target.embed}
 	<EmbedView embed={target.embed} />
-{:else if target.kind === 'text'}
-	{#if target.selftextHtml}
-		<div class="self-wrap">
-			<SelfText html={target.selftextHtml} />
-		</div>
-	{:else if target.selftext}
-		<div class="self-wrap">
-			<SelfText md={target.selftext} />
-		</div>
-	{/if}
 {:else if target.kind === 'link'}
 	<div class="link-wrap">
 		<LinkPreview url={target.url} domain={target.domain} thumbnail={target.thumbnail} />
+	</div>
+{/if}
+
+<!-- Body text renders alongside the media, not instead of it: modern Reddit
+     posts can carry a selftext body on image/video/gallery/link posts too. -->
+{#if target.selftextHtml}
+	<div class="self-wrap">
+		<SelfText html={target.selftextHtml} />
+	</div>
+{:else if target.selftext}
+	<div class="self-wrap">
+		<SelfText md={target.selftext} />
 	</div>
 {/if}
 

@@ -4,6 +4,7 @@
 	import RelativeTime from '$lib/components/shared/RelativeTime.svelte';
 	import { formatScore } from '$lib/utils/format';
 	import { prefs } from '$lib/stores/prefs';
+	import { readPosts } from '$lib/stores/readPosts';
 	import { openPostActions } from '$lib/stores/postActions';
 	import { longPress } from '$lib/actions/longPress';
 	import type { Post } from '$lib/reddit/types';
@@ -16,6 +17,7 @@
 	let { post, onOpen }: Props = $props();
 	let thumb = $derived(post.thumbnail ?? post.preview?.url);
 	let blur = $derived(post.over18 && $prefs.blurNsfw);
+	let visited = $derived($prefs.markPostsRead && $readPosts.has(post.id));
 
 	function open() {
 		if (onOpen) onOpen(post);
@@ -38,7 +40,7 @@
 		{/if}
 	</div>
 	<div class="body">
-		<div class="title">{post.title}</div>
+		<div class="title" class:visited>{post.title}</div>
 		<div class="meta">
 			<span>r/{post.subreddit}</span>
 			<span>·</span>
@@ -91,7 +93,7 @@
 		gap: 4px;
 	}
 	.title {
-		font-size: 14px;
+		font-size: calc(14px * var(--font-scale));
 		font-weight: 500;
 		line-height: 1.3;
 		display: -webkit-box;
@@ -99,6 +101,9 @@
 		line-clamp: 3;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
+	}
+	.title.visited {
+		color: var(--md-sys-color-on-surface-variant);
 	}
 	.meta {
 		font-size: 11px;

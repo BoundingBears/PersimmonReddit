@@ -13,9 +13,10 @@
 		options: ReadonlyArray<T | Option>;
 		label?: string;
 		align?: 'left' | 'right';
+		onChange?: (value: T) => void; // fired only on a genuine user selection
 	}
 
-	let { value = $bindable(), options, label, align = 'right' }: Props = $props();
+	let { value = $bindable(), options, label, align = 'right', onChange }: Props = $props();
 
 	let open = $state(false);
 	let triggerEl: HTMLButtonElement | undefined = $state();
@@ -35,9 +36,11 @@
 	}
 
 	function pick(v: T) {
+		const changed = v !== value;
 		value = v;
 		open = false;
 		triggerEl?.focus();
+		if (changed) onChange?.(v);
 	}
 
 	function onWindowPointerdown(e: PointerEvent) {

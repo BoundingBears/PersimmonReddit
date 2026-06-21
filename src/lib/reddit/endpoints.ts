@@ -8,6 +8,7 @@ import {
 	parseSubmissionAndComments,
 	parseSubreddit,
 	parseSubredditListing,
+	parseSubredditRules,
 	parseUser,
 	parseUserOverview
 } from './parsers';
@@ -19,6 +20,7 @@ import type {
 	Result,
 	Sort,
 	Subreddit,
+	SubredditRule,
 	TimeRange,
 	User
 } from './types';
@@ -31,7 +33,7 @@ function defaults(opts?: Record<string, string | number | boolean>) {
 }
 
 function map<T, U>(r: Result<T>, fn: (v: T) => U): Result<U> {
-	return r.ok ? { ok: true, data: fn(r.data) } : r;
+	return r.ok ? { ok: true, data: fn(r.data), meta: r.meta } : r;
 }
 
 // ---------- Submissions ----------
@@ -73,9 +75,15 @@ export async function getMergedSubmissions(
 
 	const lists: Post[][] = [];
 	const failures: string[] = [];
+	let oldestStaleAt: number | undefined;
 	for (let i = 0; i < results.length; i++) {
 		const r = results[i];
 		if (r.ok) {
+			// If any sub was served from the persistent cache, the merged feed is
+			// (partly) stale — surface the oldest cached timestamp.
+			if (r.meta?.staleAt) {
+				oldestStaleAt = oldestStaleAt ? Math.min(oldestStaleAt, r.meta.staleAt) : r.meta.staleAt;
+			}
 			// Drop stickied posts from merged feeds — they're useful on an
 			// individual sub's page (mod announcements specific to that sub),
 			// but in a round-robin merge across N subs they pile up at the
@@ -107,7 +115,11 @@ export async function getMergedSubmissions(
 	if (failures.length === subs.length) {
 		return { ok: false, error: { message: `all ${subs.length} subs failed` } };
 	}
-	return { ok: true, data: { after: null, before: null, items: deduped } };
+	return {
+		ok: true,
+		data: { after: null, before: null, items: deduped },
+		meta: oldestStaleAt ? { staleAt: oldestStaleAt } : undefined
+	};
 }
 
 export async function getSubmission(id: string): Promise<Result<Post>> {
@@ -156,6 +168,11 @@ export async function getMoreChildren(
 export async function getSubreddit(name: string): Promise<Result<Subreddit>> {
 	const r = await getJson<any>(`/r/${name}/about.json`);
 	return map(r, (j) => parseSubreddit(j.data));
+}
+
+export async function getSubredditRules(name: string): Promise<Result<SubredditRule[]>> {
+	const r = await getJson<any>(`/r/${name}/about/rules.json`);
+	return map(r, parseSubredditRules);
 }
 
 export async function getPopularSubreddits(opts?: { limit?: number; after?: string }) {

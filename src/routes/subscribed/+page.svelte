@@ -11,6 +11,7 @@
 	let posts = $state<Post[]>([]);
 	let loading = $state(false);
 	let error = $state<string | null>(null);
+	let staleAt = $state<number | null>(null);
 	let sort = $state<Sort>('hot');
 
 	async function load() {
@@ -29,6 +30,7 @@
 				return;
 			}
 			posts = r.data.items;
+			staleAt = r.meta?.staleAt ?? null;
 		} catch (e) {
 			console.error('subscribed load failed', e);
 			error = e instanceof Error ? e.message : String(e);
@@ -84,7 +86,7 @@
 		<button onclick={load}>Retry</button>
 	</div>
 {:else}
-	<FeedList {posts} {loading} hasMore={false} onRefresh={refresh} />
+	<FeedList {posts} {loading} hasMore={false} applyFilters {staleAt} onRefresh={refresh} />
 {/if}
 
 <style>

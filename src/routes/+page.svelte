@@ -12,6 +12,8 @@
 	import { getFeedSnapshot, saveFeedSnapshot } from '$lib/stores/feedSnapshot';
 	import type { Listing, Post, Sort } from '$lib/reddit/types';
 
+	let staleAt = $state<number | null>(null);
+
 	const SNAPSHOT_KEY = 'home';
 
 	// Hydrate from cached snapshot if we have one (back-navigation case).
@@ -60,6 +62,7 @@
 					return;
 				}
 				listing = r.data;
+				staleAt = r.meta?.staleAt ?? null;
 			} else {
 				const r = await getSubmissions(
 					v as Sort,
@@ -71,6 +74,7 @@
 					return;
 				}
 				listing = r.data;
+				staleAt = r.meta?.staleAt ?? null;
 			}
 			posts = reset ? listing.items : [...posts, ...listing.items];
 			after = listing.after;
@@ -190,6 +194,9 @@
 		{loading}
 		hasMore={after !== null}
 		feedKey={{ sort: $prefs.homeView, after }}
+		applyFilters={$prefs.homeView === 'subscribed'}
+		{staleAt}
+		{error}
 		onLoadMore={() => load(false)}
 		onRefresh={refresh}
 	/>

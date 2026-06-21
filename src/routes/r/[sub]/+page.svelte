@@ -6,9 +6,13 @@
 	import FeedList from '$lib/components/feed/FeedList.svelte';
 	import Icon from '$lib/components/shared/Icon.svelte';
 	import Dropdown from '$lib/components/shared/Dropdown.svelte';
+	import { get } from 'svelte/store';
 	import { getSubmissions, getSubreddit } from '$lib/reddit/endpoints';
 	import { clearCache } from '$lib/reddit/client';
 	import { subscribed } from '$lib/stores/subscribed';
+	import { subSort } from '$lib/stores/subSort';
+	import { prefs } from '$lib/stores/prefs';
+	import { openSubredditInfo } from '$lib/stores/subredditInfo';
 	import { getFeedSnapshot, saveFeedSnapshot } from '$lib/stores/feedSnapshot';
 	import type { Post, Sort } from '$lib/reddit/types';
 
@@ -18,13 +22,33 @@
 	let snapshotKey = $derived(`r:${sub.toLowerCase()}`);
 	const initialSnap = getFeedSnapshot(`r:${($page.params.sub ?? '').toLowerCase()}`);
 
+	// Sort precedence: session snapshot > remembered per-sub sort > global default.
+	function memorySort(s: string): Sort {
+		const snap = getFeedSnapshot(`r:${s.toLowerCase()}`);
+		return (snap?.sort as Sort) ?? subSort.get(s) ?? get(prefs).defaultSort;
+	}
+
 	let posts = $state<Post[]>(initialSnap?.posts ?? []);
 	let after = $state<string | null>(initialSnap?.after ?? null);
 	let loading = $state(false);
 	let error = $state<string | null>(null);
-	let sort = $state<Sort>((initialSnap?.sort as Sort) ?? 'hot');
+	let staleAt = $state<number | null>(null);
+	let sort = $state<Sort>(memorySort($page.params.sub ?? ''));
 	let restored = $state(!!initialSnap);
 	let scrollRestored = $state(false);
+
+	// On in-place navigation to a *different* sub (component is reused across
+	// /r/[sub] params), adopt that sub's remembered sort before the reload effect
+	// below fires. Skipped on the initial run (cur === appliedSub).
+	let appliedSub = $state(($page.params.sub ?? '').toLowerCase());
+	$effect(() => {
+		const cur = sub.toLowerCase();
+		untrack(() => {
+			if (cur === appliedSub) return;
+			appliedSub = cur;
+			sort = memorySort(cur);
+		});
+	});
 
 	async function load(reset = false) {
 		if (loading) return;
@@ -38,6 +62,7 @@
 			}
 			posts = reset ? r.data.items : [...posts, ...r.data.items];
 			after = r.data.after;
+			if (reset) staleAt = r.meta?.staleAt ?? null;
 		} catch (e) {
 			console.error('r/[sub] load failed', sub, e);
 			error = e instanceof Error ? e.message : String(e);
@@ -114,10 +139,13 @@
 
 <TopAppBar title="r/{sub}" subtitle={sort} showBack>
 	{#snippet actions()}
+		<button class="iconbtn" onclick={() => openSubredditInfo(sub)} aria-label="Subreddit info">
+			<Icon name="info" size={22} />
+		</button>
 		<button class="iconbtn" onclick={toggleSub} aria-label={isSubbed ? 'Unsubscribe' : 'Subscribe'}>
 			<Icon name={isSubbed ? 'bookmark' : 'bookmark_border'} size={22} filled={isSubbed} />
 		</button>
-		<Dropdown bind:value={sort} options={sorts} label="Sort" />
+		<Dropdown bind:value={sort} options={sorts} label="Sort" onChange={(s) => subSort.set(sub, s)} />
 	{/snippet}
 </TopAppBar>
 
@@ -133,6 +161,8 @@
 	{loading}
 	hasMore={after !== null}
 	feedKey={{ sort, subreddit: sub, after }}
+	{staleAt}
+	{error}
 	onLoadMore={() => load(false)}
 	onRefresh={refresh}
 />

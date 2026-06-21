@@ -114,6 +114,17 @@ export interface Subreddit {
 	primaryColor?: string;
 }
 
+// Subreddit rules come from a separate endpoint (/r/<sub>/about/rules.json), so
+// they're modeled apart from Subreddit (which is persisted into the subscribed
+// store and should stay lean).
+export interface SubredditRule {
+	shortName: string;
+	description?: string;
+	descriptionHtml?: string;
+	violationReason?: string;
+	createdUtc?: number;
+}
+
 export interface User {
 	name: string;
 	createdUtc: number;
@@ -134,8 +145,15 @@ export interface Listing<T> {
 // Result type — every endpoint returns this so callers must handle errors
 // explicitly instead of getting a silent `null` back.
 export type Result<T> =
-	| { ok: true; data: T }
+	| { ok: true; data: T; meta?: ResultMeta }
 	| { ok: false; error: { status?: number; message: string; cause?: unknown } };
+
+// Optional metadata on a successful result. `staleAt` is set when the data came
+// from the persistent feed cache because the live fetch failed (offline/blocked)
+// — the UI shows a "showing cached" banner.
+export interface ResultMeta {
+	staleAt?: number;
+}
 
 export type Sort = 'hot' | 'new' | 'top' | 'rising' | 'controversial' | 'best';
 export type CommentSort = 'best' | 'top' | 'new' | 'controversial' | 'old' | 'qa' | 'confidence';

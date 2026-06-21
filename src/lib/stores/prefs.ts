@@ -27,6 +27,12 @@ export interface Prefs {
 	autoplayVideos: boolean;
 	openLinksInBrowser: boolean; // vs in-app webview
 	haptics: boolean;
+	markPostsRead: boolean; // grey out titles of posts you've opened
+	hideReadPosts: boolean; // also drop opened posts from feeds (needs markPostsRead)
+	uaEscalationEnabled: boolean; // try alternate User-Agents when Reddit blocks us
+	feedCacheTtlHours: number; // age-out for the persistent last-good feed cache
+	lastSeenVersion: string; // app version the user last saw the What's New sheet for
+	fontScale: number; // reading-text size multiplier (0.8–1.5)
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -42,13 +48,43 @@ export const DEFAULT_PREFS: Prefs = {
 	lazyModePxPerSec: 60,
 	autoplayVideos: false,
 	openLinksInBrowser: true,
-	haptics: true
+	haptics: true,
+	markPostsRead: true,
+	hideReadPosts: false,
+	uaEscalationEnabled: true,
+	feedCacheTtlHours: 24,
+	lastSeenVersion: '',
+	fontScale: 1
 };
 
 const STORAGE_KEY = 'persimmon.prefs';
 
-function createPrefs(): Writable<Prefs> & { ready: Promise<void>; reset: () => void } {
+function createPrefs(): Writable<Prefs> & {
+	ready: Promise<void>;
+	reset: () => void;
+	flush: () => Promise<void>;
+} {
 	const store = writable<Prefs>(DEFAULT_PREFS);
+
+	// Trailing debounce: sliders (e.g. fontScale) fire many updates per drag,
+	// and each write flushes the whole object to SharedPreferences. Coalesce
+	// bursts into one write ~200ms after the last change. flush() forces the
+	// pending write out immediately — for one-shot state that must survive a
+	// quick app-kill (e.g. marking the What's New version seen).
+	let writeTimer: ReturnType<typeof setTimeout> | null = null;
+	let latest = DEFAULT_PREFS;
+	async function flush(): Promise<void> {
+		if (writeTimer) {
+			clearTimeout(writeTimer);
+			writeTimer = null;
+		}
+		if (!browser) return;
+		try {
+			await Preferences.set({ key: STORAGE_KEY, value: JSON.stringify(latest) });
+		} catch {
+			// ignore — preferences write failures are non-fatal
+		}
+	}
 
 	const ready = (async () => {
 		if (!browser) return;
@@ -64,19 +100,18 @@ function createPrefs(): Writable<Prefs> & { ready: Promise<void>; reset: () => v
 		} catch {
 			// fall through to defaults
 		}
-		store.subscribe(async (v) => {
-			try {
-				await Preferences.set({ key: STORAGE_KEY, value: JSON.stringify(v) });
-			} catch {
-				// ignore — preferences write failures are non-fatal
-			}
+		store.subscribe((v) => {
+			latest = v;
+			if (writeTimer) clearTimeout(writeTimer);
+			writeTimer = setTimeout(flush, 200);
 		});
 	})();
 
 	return {
 		...store,
 		ready,
-		reset: () => store.set({ ...DEFAULT_PREFS })
+		reset: () => store.set({ ...DEFAULT_PREFS }),
+		flush
 	};
 }
 

@@ -7,7 +7,27 @@
 	import Icon from '$lib/components/shared/Icon.svelte';
 	import { formatScore } from '$lib/utils/format';
 	import { searchPosts, searchSubreddits, searchUsers } from '$lib/reddit/endpoints';
+	import { subscribed } from '$lib/stores/subscribed';
+	import { tick as haptic } from '$lib/utils/haptics';
 	import type { Post, Subreddit, User } from '$lib/reddit/types';
+
+	function isSubbed(name: string): boolean {
+		return $subscribed.some((e) => e.name.toLowerCase() === name.toLowerCase());
+	}
+	// Subscribe straight from the results — search already gives us the icon /
+	// color / subscriber count, so no extra fetch is needed (unlike r/[sub]).
+	function toggleSub(s: Subreddit) {
+		if (isSubbed(s.name)) {
+			subscribed.remove(s.name);
+		} else {
+			subscribed.add(s.name, {
+				iconImg: s.iconImg || s.communityIcon,
+				primaryColor: s.primaryColor,
+				subscribers: s.subscribers
+			});
+		}
+		haptic();
+	}
 
 	type Tab = 'posts' | 'subreddits' | 'users';
 	const TABS: Tab[] = ['posts', 'subreddits', 'users'];
@@ -73,13 +93,30 @@
 		if (q.trim()) run();
 	}
 
-	// On mount: if we have a query in the URL (back-navigation case), run it
-	// automatically so the user's previous results re-appear.
+	// On mount: if we have a query in the URL (back-navigation case) and the
+	// snapshot didn't restore results, run the search to populate them.
 	$effect(() => {
 		untrack(() => {
-			if (q.trim()) run();
+			if (!q.trim()) return;
+			const haveResults =
+				(tab === 'posts' && posts.length > 0) ||
+				(tab === 'subreddits' && subs.length > 0) ||
+				(tab === 'users' && users.length > 0);
+			if (!haveResults) run();
 		});
 	});
+
+	// Persist result arrays across navigations so the swipe-back peek
+	// transitions seamlessly into the real page (no flash + refetch).
+	// q and tab are already restored via the URL.
+	export const snapshot = {
+		capture: () => ({ posts, subs, users }),
+		restore: (v: { posts: Post[]; subs: Subreddit[]; users: User[] }) => {
+			posts = v.posts;
+			subs = v.subs;
+			users = v.users;
+		}
+	};
 </script>
 
 <TopAppBar title="Search" />
@@ -105,20 +142,30 @@
 	{#each posts as p (p.id)}<PostCompact post={p} />{/each}
 {:else if tab === 'subreddits'}
 	{#each subs as s (s.name)}
-		<a class="sub-row" href={`/r/${s.name}`}>
-			{#if s.iconImg}
-				<img src={s.iconImg} alt="" referrerpolicy="no-referrer" />
-			{:else}
-				<div class="placeholder"><Icon name="forum" size={20} /></div>
-			{/if}
-			<div class="sub-meta">
-				<div class="sub-name">r/{s.name}</div>
-				<div class="sub-stats">{formatScore(s.subscribers)} members</div>
-				{#if s.publicDescription}
-					<div class="sub-desc">{s.publicDescription}</div>
+		<div class="sub-row">
+			<a class="sub-link" href={`/r/${s.name}`}>
+				{#if s.iconImg}
+					<img src={s.iconImg} alt="" referrerpolicy="no-referrer" />
+				{:else}
+					<div class="placeholder"><Icon name="forum" size={20} /></div>
 				{/if}
-			</div>
-		</a>
+				<div class="sub-meta">
+					<div class="sub-name">r/{s.name}</div>
+					<div class="sub-stats">{formatScore(s.subscribers)} members</div>
+					{#if s.publicDescription}
+						<div class="sub-desc">{s.publicDescription}</div>
+					{/if}
+				</div>
+			</a>
+			<button
+				class="sub-toggle"
+				class:subbed={isSubbed(s.name)}
+				onclick={() => toggleSub(s)}
+				aria-label={isSubbed(s.name) ? `Unsubscribe from r/${s.name}` : `Subscribe to r/${s.name}`}
+			>
+				<Icon name={isSubbed(s.name) ? 'bookmark' : 'bookmark_border'} filled={isSubbed(s.name)} size={22} />
+			</button>
+		</div>
 	{/each}
 {:else}
 	{#each users as u (u.name)}
@@ -183,9 +230,34 @@
 	}
 	.sub-row {
 		display: flex;
-		gap: 12px;
-		padding: 10px 14px;
+		align-items: center;
+		gap: 4px;
+		padding-right: 8px;
 		border-bottom: 1px solid var(--md-sys-color-outline-variant);
+	}
+	.sub-link {
+		display: flex;
+		gap: 12px;
+		flex: 1;
+		min-width: 0;
+		padding: 10px 14px;
+		color: inherit;
+	}
+	.sub-toggle {
+		flex: none;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 40px;
+		height: 40px;
+		border-radius: 20px;
+		color: var(--md-sys-color-on-surface-variant);
+	}
+	.sub-toggle.subbed {
+		color: var(--md-sys-color-primary);
+	}
+	.sub-toggle:active {
+		background: var(--md-sys-color-surface-container-highest);
 	}
 	.sub-row img,
 	.placeholder {

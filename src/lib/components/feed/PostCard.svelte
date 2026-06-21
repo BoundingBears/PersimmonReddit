@@ -7,7 +7,12 @@
 	import VoteScore from '$lib/components/shared/VoteScore.svelte';
 	import { formatScore } from '$lib/utils/format';
 	import { prefs } from '$lib/stores/prefs';
+	import { readPosts } from '$lib/stores/readPosts';
+	import { saved } from '$lib/stores/saved';
 	import { sharePost } from '$lib/utils/share';
+	import { savedMetaFromPost } from '$lib/utils/savedMeta';
+	import { tick as haptic } from '$lib/utils/haptics';
+	import { pushToast } from '$lib/stores/toast';
 	import { openPostActions } from '$lib/stores/postActions';
 	import { longPress } from '$lib/actions/longPress';
 	import type { Post } from '$lib/reddit/types';
@@ -20,9 +25,17 @@
 	let { post, onOpen }: Props = $props();
 
 	let preview = $derived(post.preview ?? post.image);
-	let blur = $derived(post.over18 && $prefs.blurNsfw);
+	let revealed = $state(false);
+	let blur = $derived(post.over18 && $prefs.blurNsfw && !revealed);
+	let visited = $derived($prefs.markPostsRead && $readPosts.has(post.id));
 
-	function open() {
+	function reveal(e: MouseEvent) {
+		e.stopPropagation();
+		revealed = true;
+	}
+
+	function open(e?: Event) {
+		if (e && (e.target as HTMLElement | null)?.closest('a')) return;
 		if (onOpen) onOpen(post);
 		else goto(`/comments/${post.id}`);
 	}
@@ -30,6 +43,22 @@
 	function onShare(e: MouseEvent) {
 		e.stopPropagation();
 		sharePost({ url: `https://www.reddit.com${post.permalink}`, title: post.title });
+	}
+
+	function onSave(e: MouseEvent) {
+		e.stopPropagation();
+		const id = post.id;
+		if ($saved.has(id)) {
+			saved.unsave(id);
+			haptic();
+		} else {
+			saved.save(id, savedMetaFromPost(post));
+			haptic();
+			pushToast('Saved', {
+				duration: 5000,
+				action: { label: 'UNDO', onClick: () => saved.unsave(id) }
+			});
+		}
 	}
 </script>
 
@@ -51,7 +80,7 @@
 		{/if}
 	</header>
 
-	<h2 class="title">{post.title}</h2>
+	<h2 class="title" class:visited>{post.title}</h2>
 
 	{#if post.flair?.text || post.over18 || post.spoiler}
 		<div class="flairs">
@@ -75,7 +104,10 @@
 				width={preview.width || undefined}
 				height={preview.height || undefined}
 			/>
-			{#if post.kind === 'video'}
+			{#if blur}
+				<button class="reveal" onclick={reveal}>Tap to reveal</button>
+			{/if}
+			{#if post.kind === 'video' && !blur}
 				<div class="play"><Icon name="play_arrow" size={48} /></div>
 			{/if}
 			{#if post.kind === 'gallery'}
@@ -98,6 +130,14 @@
 			{formatScore(post.numComments)}
 		</span>
 		<span class="spacer"></span>
+		<button
+			class="action btn"
+			class:active={$saved.has(post.id)}
+			onclick={onSave}
+			aria-label={$saved.has(post.id) ? 'Remove from saved' : 'Save'}
+		>
+			<Icon name="bookmark" size={18} filled={$saved.has(post.id)} />
+		</button>
 		<button class="action btn" onclick={onShare} aria-label="Share">
 			<Icon name="share" size={18} />
 		</button>
@@ -130,9 +170,12 @@
 	}
 	.title {
 		margin: 0;
-		font-size: 16px;
+		font-size: calc(16px * var(--font-scale));
 		font-weight: 500;
 		line-height: 1.3;
+	}
+	.title.visited {
+		color: var(--md-sys-color-on-surface-variant);
 	}
 	.flairs {
 		display: flex;
@@ -165,11 +208,28 @@
 		display: block;
 		width: 100%;
 		height: auto;
-		max-height: 60vh;
+		/* Uniform cap so a tall/portrait thumbnail doesn't dominate the feed —
+		   landscape media stays its natural (shorter) height; taller media is
+		   cropped to this height so cards scan consistently. */
+		max-height: 42vh;
 		object-fit: cover;
+		object-position: top;
 	}
 	.preview.blur img {
 		filter: blur(36px);
+	}
+	.reveal {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		padding: 8px 16px;
+		border-radius: 24px;
+		background: var(--md-sys-color-primary);
+		color: var(--md-sys-color-on-primary);
+		font-weight: 500;
+		font-size: 13px;
+		z-index: 2;
 	}
 	.play {
 		position: absolute;
@@ -195,7 +255,7 @@
 	}
 	.selftext {
 		margin: 0;
-		font-size: 13px;
+		font-size: calc(13px * var(--font-scale));
 		color: var(--md-sys-color-on-surface-variant);
 		white-space: pre-wrap;
 		max-height: 8em;
@@ -233,6 +293,9 @@
 	}
 	.btn:active {
 		background: var(--md-sys-color-surface-container-highest);
+	}
+	.btn.active {
+		color: var(--md-sys-color-primary);
 	}
 	.badge {
 		display: inline-flex;

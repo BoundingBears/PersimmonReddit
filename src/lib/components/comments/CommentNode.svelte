@@ -20,7 +20,8 @@
 	// instead of cycling through a fixed 6-color palette.
 	let depthTone = $derived(`oklch(0.78 0.12 ${((290 + comment.depth * 137.508) % 360).toFixed(1)})`);
 
-	function toggle() {
+	function toggle(e?: Event) {
+		if (e && (e.target as HTMLElement | null)?.closest('a')) return;
 		collapsed = !collapsed;
 	}
 
@@ -116,16 +117,16 @@
 	.mod {
 		padding: 1px 5px;
 		border-radius: 4px;
-		background: #2e7d32;
-		color: #fff;
+		background: var(--md-sys-color-success);
+		color: var(--md-sys-color-on-success);
 		font-weight: 600;
 		font-size: 10px;
 	}
 	.admin {
 		padding: 1px 5px;
 		border-radius: 4px;
-		background: #c62828;
-		color: #fff;
+		background: var(--md-sys-color-error);
+		color: var(--md-sys-color-on-error);
 		font-weight: 600;
 		font-size: 10px;
 	}

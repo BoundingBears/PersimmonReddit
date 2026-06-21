@@ -27,6 +27,9 @@ vite.config.ts.timestamp-*
 *.aab
 release/
 
+# iOS — held (not buildable yet); keep the whole Capacitor iOS project out of git
+/ios/
+
 # Local image preview helpers — regenerated on demand by capacitor-assets
 assets/preview*.png
 assets/_p-*.png

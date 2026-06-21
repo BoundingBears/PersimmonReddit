@@ -11,3 +11,15 @@ export const IS_NATIVE: boolean = (() => {
 		return false;
 	}
 })();
+
+// iOS-specific branch — App Store policy requires us to hide NSFW content
+// rather than gate it behind a user toggle, so any NSFW handling needs to
+// know whether we're on iOS. Other platform branches (Android, web) keep
+// the existing toggle-based behavior.
+export const IS_IOS: boolean = (() => {
+	try {
+		return Capacitor.getPlatform() === 'ios';
+	} catch {
+		return false;
+	}
+})();

@@ -8,9 +8,9 @@
 
 ## 🎀 Meet Persimmon-chan
 
-Persimmon-chan is the (currently imaginary) friendly face of this little garden — a cheerful seasonal sprite themed around the persimmon fruit: warm orange-red, leafy green hair, a quiet sense of mischief, probably carrying a tiny basket of fruit.
+Persimmon-chan is the (currently imaginary) friendly face of this little garden: a cheerful seasonal sprite themed around the persimmon fruit. Warm orange-red, leafy green hair, a quiet sense of mischief, probably carrying a tiny basket of fruit.
 
-**She doesn't exist yet.** We need someone to draw her! See [🎨 Help Wanted](#-help-wanted) below if you want to be the artist who brings her to life — you'd be the very first community contributor and you'd ship in the next release. 💕
+**She doesn't exist yet.** We need someone to draw her! See [🎨 Help Wanted](#-help-wanted) below if you want to be the artist who brings her to life. You'd be the very first community contributor and you'd ship in the next release. 💕
 
 ---
 
@@ -18,35 +18,43 @@ Persimmon-chan is the (currently imaginary) friendly face of this little garden 
 
 In 2023, Reddit killed third-party apps. The pricing gutted Apollo overnight. Reddit is Fun went down with it. Sync. BaconReader. Boost. One by one, the apps that made browsing Reddit pleasant just… disappeared. The official Reddit app rushed in to fill the vacuum, and somehow, in a market suddenly free of competition, it managed to get worse.
 
-Open the official app on a fresh install and Reddit demands you log in before you can do anything. Tap a Reddit link from Discord or a tweet and a popup begs you to install the app — you already have it, doesn't matter, install it again. Try to read on the web instead and the page is buried under "Open in App" overlays, "Reddit Premium" splash screens, "create an account to continue", carousels of suggested communities you didn't ask for, ads stuffed between every other comment, and notification permission requests every time you breathe near the screen.
+Open the official app on a fresh install and Reddit demands you log in before you can do anything. Tap a Reddit link from Discord or a tweet and a popup begs you to install the app. You already have it, doesn't matter, install it again. Try to read on the web instead and the page is buried under "Open in App" overlays, "Reddit Premium" splash screens, "create an account to continue", carousels of suggested communities you didn't ask for, ads stuffed between every other comment, and notification permission requests every time you breathe near the screen.
 
 I just wanted to read Reddit.
 
 No login. No account. No ads. No "are you sure you want to leave the app?" popups. No upsells. No carousels. No notifications. Just posts, comments, images, and the occasional cat picture. The thing Reddit used to feel like before someone in product decided every interaction needed to convert me into a daily-active-user statistic.
 
-So I built Persimmon. It reads Reddit the same way a web browser does — no account, no login, nothing to pay for. No ads, no telemetry, no premium tier, and no plans to add any. It costs me nothing to run; it costs you nothing to use.
+So I built Persimmon. It reads Reddit the same way a web browser does, with no account, no login, and nothing to pay for. No ads, no telemetry, no premium tier, and no plans to add any. It costs me nothing to run; it costs you nothing to use.
 
-It's read-only on purpose. You can browse, search, bookmark subs, save images — everything you'd want as a reader. Posting, voting, and commenting still happen on Reddit's site or app. That's deliberate: as long as Persimmon is just reading a public website, Reddit can't kill it the way they killed the others.
+It's read-only on purpose. You can browse, search, bookmark subs, save images, everything you'd want as a reader. Posting, voting, and commenting still happen on Reddit's site or app. That's deliberate: as long as Persimmon is just reading a public website, Reddit can't kill it the way they killed the others.
 
-This is the **initial launch.** Persimmon currently ships as an Android APK you sideload from [GitHub Releases](https://github.com/BoundingBears/PersimmonReddit/releases) — that means downloading the file, tapping it, and ignoring Android's scary "this isn't from the Play Store" warning (it's signed, just not by Google). **iOS and Play Store releases are on the roadmap for the near future** — both are harder problems (Apple's $99/year tax, App Store and Play policies that have been hostile to anything Reddit-adjacent since 2023) but they're solvable, and I plan to make them come.
+Persimmon ships as an Android APK you sideload from [GitHub Releases](https://github.com/BoundingBears/PersimmonReddit/releases). That means downloading the file, tapping it, and ignoring Android's scary "this isn't from the Play Store" warning (it's signed, just not by Google). **iOS and Play Store releases are on the roadmap.** Both are harder problems (Apple's $99/year tax, plus App Store and Play policies that have been hostile to anything Reddit-adjacent since 2023), but they're solvable, and I plan to get there.
 
-If you've been mourning Apollo, side-eyeing the official app, or just want a Reddit reader that doesn't try to sell you anything — try Persimmon. Read Reddit like it's 2014 again.
+If you've been mourning Apollo, side-eyeing the official app, or just want a Reddit reader that doesn't try to sell you anything, try Persimmon. Read Reddit like it's 2014 again.
 
-🌸 *(Also: I'm still looking for an artist to draw Persimmon-chan, the app's mascot. If you'd like to contribute some art, DM me — there's a [Ko-fi link](https://ko-fi.com/boundingbears) if you'd rather just throw a coffee at the project.)*
+🌸 *(Also: I'm still looking for an artist to draw Persimmon-chan, the app's mascot. If you'd like to contribute some art, DM me. There's a [Ko-fi link](https://ko-fi.com/boundingbears) if you'd rather just throw a coffee at the project.)*
 
 ---
 
 ## ✨ Features
 
-- 🎨 **Material 3 UI** — several themes with a custom accent picker
-- 📐 **Three feed layouts** — card, compact, gallery — switchable from settings
+- 🎨 **Material 3 UI** with several themes, a custom accent picker, and a reading-size slider
+- 📐 **Three feed layouts** (card, compact, gallery), switchable any time
 - 🍊 **Subscribed feed** that merges all your bookmarked subreddits into one
-- 🔄 **Pull to refresh** on every feed, with a proper indicator and gesture haptics
-- 🖼️ **In-app image / video lightbox** with save & share buttons
-- 💫 **Smart navigation** — smooth transitions, scroll-position restoration when you back-gesture out of a post, bottom-tab spam doesn't pollute history
-- 🌱 **Privacy is policy** — public Reddit JSON feeds, no telemetry, never any ads
+- 🗂️ **Custom feeds** you build right from the side drawer: tap +, name one, tick the subreddits to include, done
+- 🔖 **Save posts, hide posts, and mute** by keyword, subreddit, or domain
+- 👁️ **Read tracking** that can grey out or hide posts you've already opened
+- 🧠 **Per-subreddit sort memory**, so each subreddit remembers how you last sorted it
+- ℹ️ **Subreddit info** with description and rules, one tap from any subreddit
+- 🔎 **Search** posts, subreddits, and users, and bookmark subs straight from the results
+- 🖼️ **In-app image and video viewer** with pinch-zoom, sound, and save / share
+- 🙈 **NSFW blur** with tap-to-reveal
+- 🔗 **Open Reddit links** shared or tapped from other apps, straight into Persimmon
+- 💾 **Backup and restore** your subs, saved posts, filters, and settings to a file
+- 💫 **Smooth navigation**: page transitions, scroll-position restore on back, skeleton loading, and cached feeds for instant relaunches
+- 🌱 **Privacy is policy**: public Reddit JSON, no account, no telemetry, never any ads
 
-## 🌿 Read-only — by design
+## 🌿 Read-only, by design
 
 Persimmon does not log into Reddit. It cannot vote, comment, post, save, or subscribe on Reddit's side. "Subscribed" subreddits are stored locally on your device and used to build a personal merged feed via Reddit's standard public per-subreddit endpoints.
 
@@ -54,7 +62,7 @@ If Reddit's authenticated features are something you need, this isn't the app fo
 
 ## 📦 Install
 
-Pre-built APKs live on the [Releases page](https://github.com/BoundingBears/PersimmonReddit/releases). Download the latest `.apk`, sideload, done.
+Pre-built APKs live on the [Releases page](https://github.com/BoundingBears/PersimmonReddit/releases). Download the latest `.apk`, sideload, done. If you're upgrading, Android installs over the top and your bookmarked subs, custom feeds, theme, saved posts, and other prefs carry forward.
 
 To build from source, see [🌱 Development](#-development) below.
 
@@ -62,17 +70,17 @@ To build from source, see [🌱 Development](#-development) below.
 
 - 💚 [SvelteKit](https://svelte.dev/) (SPA mode via `@sveltejs/adapter-static`) + TypeScript
 - ⚡ [Capacitor 8](https://capacitorjs.com/) for the Android wrapper
-- 🎬 [hls.js](https://github.com/video-dev/hls.js) (lazy-loaded) for v.redd.it streams
-- 📝 [marked](https://github.com/markedjs/marked) + [DOMPurify](https://github.com/cure53/DOMPurify) for comment / selftext rendering
+- 🎬 [hls.js](https://github.com/video-dev/hls.js) plus MediaSource Extensions: Reddit serves video and audio as separate streams, so Persimmon stitches them back together in the browser for sound and a single set of controls
+- 📝 [marked](https://github.com/markedjs/marked) + [DOMPurify](https://github.com/cure53/DOMPurify) for comment and selftext rendering
 - 🔣 Material Symbols (web font) for icons
-- 🍊 A thin typed wrapper around Reddit's public `/<thing>.json` endpoints — proper User-Agent, 429 retry, old.reddit.com fallback, per-shape parsers ([`src/lib/reddit/`](src/lib/reddit/))
+- 🍊 A thin typed wrapper around Reddit's public `/<thing>.json` endpoints: browser-style request headers, warmed anonymous cookies so requests aren't blocked, alternate identities and an old.reddit.com fallback when Reddit pushes back, and per-shape parsers ([`src/lib/reddit/`](src/lib/reddit/))
 
 ## 🌱 Development
 
 ### Prerequisites
 
 - Node.js 22+
-- Android Studio (only for the device install step — the SPA itself builds with just Node)
+- Android Studio (only for the device install step; the SPA itself builds with just Node)
 - A Java 17+ JDK (Android Studio's bundled JBR works fine)
 
 ### Setup
@@ -83,7 +91,7 @@ cd PersimmonReddit
 npm install
 ```
 
-If your default `JAVA_HOME` is < 17 (AGP 8 requires JDK 17+), pin Studio's bundled JBR in your **user-level** Gradle config — `~/.gradle/gradle.properties` (create if it doesn't exist). This file is per-user, lives outside any project, and never gets committed:
+If your default `JAVA_HOME` is < 17 (AGP 8 requires JDK 17+), pin Studio's bundled JBR in your **user-level** Gradle config at `~/.gradle/gradle.properties` (create it if it doesn't exist). This file is per-user, lives outside any project, and never gets committed:
 
 ```properties
 # macOS
@@ -120,7 +128,7 @@ That runs `vite build` → `npx cap sync android` → `./gradlew installDebug`. 
 npm run test
 ```
 
-Vitest exercises the parser layer against captured Reddit fixtures in [`src/lib/reddit/__fixtures__/`](src/lib/reddit/__fixtures__/). 28 tests covering text posts, image posts, galleries, v.redd.it videos, crossposts, NSFW handling, deleted comments, and "more" stubs.
+Vitest exercises the parser layer against captured Reddit fixtures in [`src/lib/reddit/__fixtures__/`](src/lib/reddit/__fixtures__/), covering text posts, image posts, galleries, v.redd.it videos, crossposts, NSFW handling, deleted comments, and "more" stubs.
 
 ### 🔍 Type-check
 
@@ -130,20 +138,20 @@ npm run check
 
 ## 🎨 Help wanted!
 
-Persimmon is a one-person project that would *love* some friends. If any of these is your jam, please open an issue or PR — you'd be making a real difference!
+Persimmon is a one-person project that would *love* some friends. If any of these is your jam, please open an issue or PR. You'd be making a real difference!
 
-### 🌸 Persimmon-chan artist *(highest priority — please come help!)*
+### 🌸 Persimmon-chan artist *(highest priority, please come help!)*
 
-We need an artist to bring **Persimmon-chan** to life! She's the (currently imaginary) community mascot. Vibe-wise: a young, cheerful sprite associated with the persimmon fruit — orange-red palette, green leafy elements, friendly and a little bit magical. Anime-adjacent style is welcome but not required; cute pixel art, watercolor, flat illustration — all interesting.
+We need an artist to bring **Persimmon-chan** to life! She's the (currently imaginary) community mascot. Vibe-wise: a young, cheerful sprite associated with the persimmon fruit, with an orange-red palette, green leafy elements, friendly and a little bit magical. Anime-adjacent style is welcome but not required; cute pixel art, watercolor, and flat illustration are all interesting.
 
 - 📐 **Format:** SVG ideal (we can use her in-app and she'll scale forever), but PNG illustrations are equally welcome
-- 🎨 **Reference:** there isn't one yet — your interpretation **is** the canon. Have fun with it.
+- 🎨 **Reference:** there isn't one yet, so your interpretation **is** the canon. Have fun with it.
 - 💌 **How:** open an issue with sketches, or jump straight to a PR with art in `assets/persimmon-chan/`
 - 🏆 **Reward:** you'd be the first community contributor to ship in this project. Permanent shoutout in the README and in the app's About page. Plus eternal gratitude. 💕
 
 ### 🖼️ App icon designer
 
-The current launcher icon is two-tone diagonal stripes (functional, but it's not *her*). If you do flat vector icon work and want to give Persimmon a more on-brand launcher icon — especially one that reads cleanly at 48dp — please open an issue or PR with some sketches!
+The current launcher icon is two-tone diagonal stripes (functional, but it's not *her*). If you do flat vector icon work and want to give Persimmon a more on-brand launcher icon, especially one that reads cleanly at 48dp, please open an issue or PR with some sketches!
 
 The current foreground source is at [`assets/icon-foreground.svg`](assets/icon-foreground.svg). An older more-realistic fruit version is preserved at [`assets/icon-only-fruit.svg`](assets/icon-only-fruit.svg) for reference.
 
@@ -153,7 +161,7 @@ Open an issue. Anything from "I wish there was a button for X" to "the comment r
 
 ## 💕 Support the project
 
-If Persimmon makes your scrolling a little more pleasant and you'd like to leave a tip — no pressure, never paywalled, never ad-supported, and never on a "tier" that gates features:
+If Persimmon makes your scrolling a little more pleasant and you'd like to leave a tip (no pressure, never paywalled, never ad-supported, and never on a "tier" that gates features):
 
 [☕ **ko-fi.com/boundingbears**](https://ko-fi.com/boundingbears)
 

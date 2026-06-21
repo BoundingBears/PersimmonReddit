@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import Icon from '$lib/components/shared/Icon.svelte';
 	import { prefs } from '$lib/stores/prefs';
+	import { readPosts } from '$lib/stores/readPosts';
 	import { openPostActions } from '$lib/stores/postActions';
 	import { longPress } from '$lib/actions/longPress';
 	import type { Post } from '$lib/reddit/types';
@@ -14,6 +15,7 @@
 	let { post, onOpen }: Props = $props();
 	let thumb = $derived(post.preview?.url ?? post.image?.url ?? post.thumbnail);
 	let blur = $derived(post.over18 && $prefs.blurNsfw);
+	let visited = $derived($prefs.markPostsRead && $readPosts.has(post.id));
 
 	function open() {
 		if (onOpen) onOpen(post);
@@ -23,6 +25,7 @@
 
 <button
 	class="tile"
+	class:visited
 	onclick={open}
 	aria-label={post.title}
 	use:longPress={{ onLongPress: () => openPostActions(post) }}
@@ -51,6 +54,9 @@
 		color: var(--md-sys-color-on-surface);
 		text-align: left;
 		padding: 0;
+	}
+	.tile.visited {
+		opacity: 0.55;
 	}
 	img {
 		width: 100%;

@@ -6,7 +6,7 @@
 	let { name }: Props = $props();
 </script>
 
-<a class="chip" href="/r/{name}" onclick={(e) => e.stopPropagation()}>
+<a class="chip" href="/r/{name}">
 	r/{name}
 </a>
 
@@ -14,8 +14,11 @@
 	.chip {
 		font-weight: 500;
 		color: var(--md-sys-color-on-surface);
-	}
-	.chip:hover {
 		text-decoration: underline;
+		text-decoration-color: var(--md-sys-color-outline-variant);
+		text-underline-offset: 2px;
+	}
+	.chip:active {
+		text-decoration-color: var(--md-sys-color-primary);
 	}
 </style>

@@ -14,6 +14,9 @@ import { App } from '@capacitor/app';
 import { get } from 'svelte/store';
 import { browser } from '$app/environment';
 import { postActionsState } from '$lib/stores/postActions';
+import { whatsNewOpen } from '$lib/stores/whatsNew';
+import { subredditInfoState } from '$lib/stores/subredditInfo';
+import { feedEditState } from '$lib/stores/feedEdit';
 import { drawerOpen } from '$lib/stores/drawer';
 import { viewerState, closeViewer } from '$lib/stores/imageViewer';
 import { IS_NATIVE } from './platform';
@@ -27,6 +30,19 @@ export function installBackHandler(): () => void {
 	App.addListener('backButton', ({ canGoBack }) => {
 		if (get(postActionsState)) {
 			postActionsState.set(null);
+			return;
+		}
+		if (get(whatsNewOpen)) {
+			whatsNewOpen.set(false);
+			return;
+		}
+		if (get(subredditInfoState)) {
+			subredditInfoState.set(null);
+			return;
+		}
+		// Feed editor sits above the drawer (it opens from it), so close it first.
+		if (get(feedEditState)) {
+			feedEditState.set(null);
 			return;
 		}
 		if (get(drawerOpen)) {

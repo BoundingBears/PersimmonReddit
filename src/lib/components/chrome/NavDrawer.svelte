@@ -1,14 +1,48 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { get } from 'svelte/store';
 	import { fade } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
 	import { goto } from '$app/navigation';
 	import Icon from '$lib/components/shared/Icon.svelte';
-	import { drawerOpen, closeDrawer } from '$lib/stores/drawer';
+	import {
+		drawerOpen,
+		closeDrawer,
+		dismissDrawerForNavigation,
+		DRAWER_OVERLAY_KEY
+	} from '$lib/stores/drawer';
 	import { subscribed } from '$lib/stores/subscribed';
 	import { hidden } from '$lib/stores/hidden';
+	import { saved } from '$lib/stores/saved';
+	import { groups } from '$lib/stores/groups';
+	import { openFeedEdit } from '$lib/stores/feedEdit';
+	import { installIOSOverlayPopstate } from '$lib/utils/iosOverlay';
+
+	// On iOS, the system swipe-from-left-edge fires popstate. Listen for it
+	// and close the drawer when the marker is popped. No-op on Android (the
+	// drawer's back behavior there is handled by Capacitor App.backButton in
+	// installBackHandler.ts).
+	onMount(() =>
+		installIOSOverlayPopstate(
+			DRAWER_OVERLAY_KEY,
+			() => get(drawerOpen),
+			() => drawerOpen.set(false)
+		)
+	);
+
+	// Lock body scroll while the drawer is open so the underlying feed
+	// can't scroll/be interacted with through the scrim.
+	$effect(() => {
+		if (!$drawerOpen) return;
+		const previous = document.body.style.overflow;
+		document.body.style.overflow = 'hidden';
+		return () => {
+			document.body.style.overflow = previous;
+		};
+	});
 
 	function go(path: string) {
-		drawerOpen.set(false);
+		dismissDrawerForNavigation();
 		goto(path);
 	}
 
@@ -77,6 +111,37 @@
 		</nav>
 
 		<nav class="section">
+			<div class="section-title with-action">
+				<span>Custom feeds</span>
+				<button class="title-add" onclick={() => openFeedEdit(null)} aria-label="New feed">
+					<Icon name="add" size={18} />
+				</button>
+			</div>
+			{#if $groups.length === 0}
+				<button class="row newfeed" onclick={() => openFeedEdit(null)}>
+					<Icon name="add" size={20} />
+					<span>New feed</span>
+				</button>
+			{:else}
+				{#each $groups as g (g.name)}
+					<div class="feed-row">
+						<button class="row feed-open" onclick={() => go(`/g/${g.name}`)}>
+							{#if g.iconEmoji}
+								<span class="emoji">{g.iconEmoji}</span>
+							{:else}
+								<Icon name="folder" size={20} />
+							{/if}
+							<span>{g.name} ({g.subreddits.length})</span>
+						</button>
+						<button class="feed-edit" onclick={() => openFeedEdit(g.name)} aria-label="Edit {g.name}">
+							<Icon name="edit" size={18} />
+						</button>
+					</div>
+				{/each}
+			{/if}
+		</nav>
+
+		<nav class="section">
 			<div class="section-title">App</div>
 			<button class="row" onclick={() => go('/subreddits')}>
 				<Icon name="explore" size={20} />
@@ -85,6 +150,10 @@
 			<button class="row" onclick={() => go('/search')}>
 				<Icon name="search" size={20} />
 				<span>Search</span>
+			</button>
+			<button class="row" onclick={() => go('/saved')}>
+				<Icon name="bookmark" size={20} filled={$saved.size > 0} />
+				<span>Saved posts{$saved.size > 0 ? ` (${$saved.size})` : ''}</span>
 			</button>
 			{#if $hidden.size > 0}
 				<button class="row" onclick={() => go('/hidden')}>
@@ -184,6 +253,59 @@
 		border-radius: 10px;
 		object-fit: cover;
 		flex: none;
+	}
+	.emoji {
+		width: 20px;
+		text-align: center;
+		flex: none;
+		font-size: 16px;
+	}
+	.section-title.with-action {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding-right: 12px;
+	}
+	.title-add {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 28px;
+		height: 28px;
+		border-radius: 14px;
+		color: var(--md-sys-color-on-surface-variant);
+	}
+	.title-add:active {
+		background: var(--md-sys-color-surface-container-highest);
+	}
+	.newfeed {
+		color: var(--md-sys-color-primary);
+	}
+	.feed-row {
+		display: flex;
+		align-items: center;
+	}
+	.feed-open {
+		flex: 1;
+		min-width: 0;
+	}
+	.feed-open span {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.feed-edit {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 40px;
+		height: 40px;
+		border-radius: 20px;
+		color: var(--md-sys-color-on-surface-variant);
+		flex: none;
+	}
+	.feed-edit:active {
+		background: var(--md-sys-color-surface-container-highest);
 	}
 	.empty {
 		padding: 8px 20px 16px;

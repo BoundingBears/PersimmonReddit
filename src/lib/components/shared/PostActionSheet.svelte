@@ -1,15 +1,37 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { get } from 'svelte/store';
 	import { fade } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
 	import { goto } from '$app/navigation';
 	import Icon from './Icon.svelte';
-	import { postActionsState, closePostActions } from '$lib/stores/postActions';
+	import {
+		postActionsState,
+		closePostActions,
+		dismissPostActionsForNavigation,
+		POST_ACTIONS_OVERLAY_KEY
+	} from '$lib/stores/postActions';
 	import { hidden } from '$lib/stores/hidden';
+	import { saved } from '$lib/stores/saved';
+	import { filters } from '$lib/stores/filters';
 	import { sharePost, copyLink } from '$lib/utils/share';
 	import { saveImage } from '$lib/utils/saveImage';
 	import { pushToast } from '$lib/stores/toast';
 	import { tick as haptic } from '$lib/utils/haptics';
 	import { hiddenMetaFromPost } from '$lib/utils/hiddenMeta';
+	import { savedMetaFromPost } from '$lib/utils/savedMeta';
+	import { installIOSOverlayPopstate } from '$lib/utils/iosOverlay';
+
+	// On iOS, swipe-from-left-edge fires popstate. The store pushes a marker
+	// when the sheet opens; this listener catches the popstate and clears
+	// the sheet state. No-op on Android (handled there by App.backButton).
+	onMount(() =>
+		installIOSOverlayPopstate(
+			POST_ACTIONS_OVERLAY_KEY,
+			() => get(postActionsState) !== null,
+			() => postActionsState.set(null)
+		)
+	);
 
 	let post = $derived($postActionsState?.post);
 	let hasMedia = $derived(!!(post && (post.image || post.preview)));
@@ -53,6 +75,24 @@
 		}
 	}
 
+	function handleBookmark() {
+		if (!post) return;
+		const id = post.id;
+		const wasSaved = $saved.has(id);
+		const meta = savedMetaFromPost(post);
+		closePostActions();
+		if (wasSaved) {
+			saved.unsave(id);
+			pushToast('Removed from saved');
+		} else {
+			saved.save(id, meta);
+			pushToast('Saved', {
+				duration: 5000,
+				action: { label: 'UNDO', onClick: () => saved.unsave(id) }
+			});
+		}
+	}
+
 	function handleShare() {
 		if (!post) return;
 		const url = permalink();
@@ -86,15 +126,34 @@
 	function handleAuthor() {
 		if (!post) return;
 		const author = post.author;
-		closePostActions();
+		dismissPostActionsForNavigation();
 		goto(`/u/${author}`);
 	}
 
 	function handleSub() {
 		if (!post) return;
 		const sub = post.subreddit;
-		closePostActions();
+		dismissPostActionsForNavigation();
 		goto(`/r/${sub}`);
+	}
+
+	let subMuted = $derived(!!post && $filters.subreddits.includes(post.subreddit.toLowerCase()));
+
+	function handleMuteSub() {
+		if (!post) return;
+		const sub = post.subreddit;
+		const wasMuted = $filters.subreddits.includes(sub.toLowerCase());
+		closePostActions();
+		if (wasMuted) {
+			filters.remove('subreddits', sub.toLowerCase());
+			pushToast(`Unmuted r/${sub}`);
+		} else {
+			filters.add('subreddits', sub);
+			pushToast(`Muted r/${sub} in subscribed feed`, {
+				duration: 5000,
+				action: { label: 'UNDO', onClick: () => filters.remove('subreddits', sub.toLowerCase()) }
+			});
+		}
 	}
 
 	function slideUp(_node: HTMLElement, { duration = 220 } = {}) {
@@ -120,6 +179,12 @@
 			<div class="meta">r/{post.subreddit} · u/{post.author}</div>
 		</div>
 		<ul class="actions" role="menu">
+			<li role="menuitem">
+				<button class="action" onclick={handleBookmark}>
+					<Icon name="bookmark" size={22} filled={$saved.has(post.id)} />
+					<span>{$saved.has(post.id) ? 'Remove from saved' : 'Save post'}</span>
+				</button>
+			</li>
 			<li role="menuitem">
 				<button class="action" onclick={handleHide}>
 					<Icon name={$hidden.has(post.id) ? 'visibility' : 'visibility_off'} size={22} />
@@ -156,6 +221,12 @@
 				<button class="action" onclick={handleSub}>
 					<Icon name="forum" size={22} />
 					<span>Open r/{post.subreddit}</span>
+				</button>
+			</li>
+			<li role="menuitem">
+				<button class="action" onclick={handleMuteSub}>
+					<Icon name={subMuted ? 'notifications_active' : 'block'} size={22} />
+					<span>{subMuted ? `Unmute r/${post.subreddit}` : `Mute r/${post.subreddit}`}</span>
 				</button>
 			</li>
 		</ul>

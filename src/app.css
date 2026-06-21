@@ -4,9 +4,45 @@
 	color-scheme: dark;
 	font-family: 'Roboto', system-ui, -apple-system, sans-serif;
 	font-size: 14px;
-	line-height: 1.4;
+	line-height: 1.5;
 	-webkit-tap-highlight-color: transparent;
 	-webkit-text-size-adjust: 100%;
+	/* Reading-text size multiplier, driven by prefs.fontScale (theme.ts). Only
+	   the main reading surfaces multiply their font-size by this; chrome stays
+	   fixed. Defined here so calc() is valid before the theme subscription runs. */
+	--font-scale: 1;
+
+	/* Type scale — semantic sizes so the feed/comments stop using ad-hoc px. */
+	--type-label: 10px;
+	--type-caption: 11px;
+	--type-meta: 12px;
+	--type-secondary: 13px;
+	--type-body: 14px;
+	--type-title: 16px;
+	--type-headline: 18px;
+	--weight-title: 500;
+	--weight-heading: 600;
+
+	/* 4px spacing grid. */
+	--space-xs: 4px;
+	--space-sm: 8px;
+	--space-md: 12px;
+	--space-lg: 16px;
+
+	/* Minimum comfortable touch target. */
+	--min-touch: 44px;
+
+	/* Semantic state color not in the base M3 set (mod badges etc). One value
+	   reads fine on every theme; promote to per-theme if it ever needs tuning. */
+	--md-sys-color-success: #3f7d49;
+	--md-sys-color-on-success: #ffffff;
+}
+
+/* Keyboard / switch-control focus indication. The app had none — this covers
+   the real <button>/<a>/input elements that make up almost all of the UI. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+	outline: 2px solid var(--md-sys-color-primary);
+	outline-offset: -2px;
 }
 
 :root[data-theme='dark'] {

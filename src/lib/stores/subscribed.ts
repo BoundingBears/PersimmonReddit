@@ -55,6 +55,21 @@ export const subscribed = {
 		const l = lower(name);
 		return list.some((e) => lower(e.name) === l);
 	},
+	// Bulk-load from a backup import. No per-entry haptic (unlike add()), and
+	// dedupes by name so a merge can't create duplicates.
+	hydrate(entries: SubscribedEntry[], mode: 'merge' | 'replace'): void {
+		internal.update((arr) => {
+			const byName = new Map<string, SubscribedEntry>(
+				mode === 'replace' ? [] : arr.map((e) => [lower(e.name), e])
+			);
+			for (const e of entries) {
+				if (e && typeof e.name === 'string') {
+					byName.set(lower(e.name), { ...byName.get(lower(e.name)), ...e });
+				}
+			}
+			return [...byName.values()];
+		});
+	},
 	clear(): void {
 		internal.set([]);
 	}

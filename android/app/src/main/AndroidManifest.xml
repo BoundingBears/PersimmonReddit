@@ -29,6 +29,15 @@
                 <data android:scheme="https" android:host="reddit.com" />
                 <data android:scheme="https" android:host="redd.it" />
             </intent-filter>
+
+            <!-- "Share to Persimmon" — receive a URL shared from another app's
+                 share sheet. MainActivity rewrites the SEND into a VIEW so the
+                 existing deep-link handler picks it up. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
         </activity>
 
         <provider

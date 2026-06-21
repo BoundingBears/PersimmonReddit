@@ -13,7 +13,11 @@ import { IS_NATIVE } from './platform';
 import { parseRedditUrl } from './parseRedditUrl';
 
 function route(url: string): void {
-	const parsed = parseRedditUrl(url);
+	// Shared text can arrive as "check this out https://reddit.com/…" — pull the
+	// first URL out before parsing. (Native already does this for SEND intents;
+	// this is defense-in-depth for any caller that passes raw text.)
+	const match = url.match(/https?:\/\/\S+/);
+	const parsed = parseRedditUrl(match ? match[0] : url);
 	if (!parsed) {
 		console.info('deep-link: ignoring unrecognized URL', url);
 		return;
