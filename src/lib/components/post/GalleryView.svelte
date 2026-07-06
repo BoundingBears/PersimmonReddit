@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Icon from '$lib/components/shared/Icon.svelte';
 	import { prefs } from '$lib/stores/prefs';
+	import { openGallery } from '$lib/stores/imageViewer';
 	import type { GalleryItem } from '$lib/reddit/types';
 
 	interface Props {
@@ -19,6 +20,15 @@
 	function next() {
 		index = (index + 1) % items.length;
 	}
+
+	// Open the fullscreen viewer at the image currently in view, handing it the
+	// whole gallery so pinch-zoom and swipe-between work there.
+	function openViewer() {
+		openGallery(
+			items.map((it) => ({ url: it.url, kind: 'image' as const, alt: it.caption ?? '', caption: it.caption })),
+			index
+		);
+	}
 </script>
 
 <div class="wrap" class:blurred>
@@ -31,6 +41,10 @@
 			referrerpolicy="no-referrer"
 		/>
 	{/each}
+
+	{#if !blurred}
+		<button class="open-hit" onclick={openViewer} aria-label="Open image fullscreen"></button>
+	{/if}
 
 	{#if items.length > 1}
 		<button class="nav left" onclick={prev} aria-label="Previous"><Icon name="chevron_left" size={28} /></button>
@@ -68,6 +82,13 @@
 	.blurred img.active {
 		filter: blur(48px);
 	}
+	.open-hit {
+		position: absolute;
+		inset: 0;
+		z-index: 1;
+		background: none;
+		cursor: zoom-in;
+	}
 	.nav {
 		position: absolute;
 		top: 50%;
@@ -80,6 +101,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		z-index: 2;
 	}
 	.nav.left {
 		left: 8px;
@@ -96,6 +118,8 @@
 		background: rgba(0, 0, 0, 0.5);
 		color: #fff;
 		font-size: 12px;
+		z-index: 2;
+		pointer-events: none;
 	}
 	.caption {
 		position: absolute;
@@ -106,6 +130,8 @@
 		background: rgba(0, 0, 0, 0.5);
 		color: #fff;
 		font-size: 13px;
+		z-index: 2;
+		pointer-events: none;
 	}
 	.reveal {
 		position: absolute;
@@ -117,5 +143,6 @@
 		background: var(--md-sys-color-primary);
 		color: var(--md-sys-color-on-primary);
 		font-weight: 500;
+		z-index: 2;
 	}
 </style>

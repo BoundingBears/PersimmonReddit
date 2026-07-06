@@ -33,6 +33,14 @@ export interface Backup {
 	};
 }
 
+// Branded extension for backup files. The payload is plain JSON — the custom
+// extension just makes the file recognizable and keeps users from editing it by
+// hand (it is NOT a zip; the data is small enough that compression buys nothing).
+export const BACKUP_EXTENSION = '.persimmon';
+// Fixed name for the silent auto-backup, so it overwrites in place rather than
+// piling up a new file per save.
+export const AUTO_BACKUP_FILENAME = `persimmon-auto-backup${BACKUP_EXTENSION}`;
+
 export function exportBackup(): Backup {
 	return {
 		app: 'persimmon',
@@ -50,6 +58,11 @@ export function exportBackup(): Backup {
 			groups: get(groups)
 		}
 	};
+}
+
+// Current backup serialized to the string we write to disk.
+export function serializeBackup(): string {
+	return JSON.stringify(exportBackup(), null, 2);
 }
 
 const EMPTY_FILTERS: FilterRules = { keywords: [], subreddits: [], domains: [] };

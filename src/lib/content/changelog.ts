@@ -10,6 +10,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.3.1',
+		title: 'Faster videos, a better image viewer & safer backups',
+		items: [
+			'🎬 Videos start almost instantly — they now stream and buffer as they play instead of downloading in full first.',
+			'🖼️ Revamped image viewer — tap a gallery post to open it fullscreen, pinch to zoom, swipe left and right between images, and swipe up or down to dismiss.',
+			'💾 Auto-backup — Persimmon keeps a current backup of your subs, saved posts, filters and settings in your Documents folder, so reinstalling can’t wipe them. Restore it any time from Settings → Backup → Import.',
+			'♾️ Fixed the stuck “Loading…” — deep scrolling no longer freezes on a hung request, and pull-to-refresh always recovers.',
+			'⚡ Icons load instantly — the icon font is bundled in the app now, so a weak signal no longer shows placeholder text where icons should be.',
+			'🆕 Update notifications — Persimmon checks for new versions and shows a banner when one’s ready, with a tap to grab it.'
+		]
+	},
+	{
 		version: '1.2',
 		title: 'Cleaner posts, custom feeds & a smoother feed',
 		items: [

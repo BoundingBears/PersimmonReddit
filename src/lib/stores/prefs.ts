@@ -33,6 +33,11 @@ export interface Prefs {
 	feedCacheTtlHours: number; // age-out for the persistent last-good feed cache
 	lastSeenVersion: string; // app version the user last saw the What's New sheet for
 	fontScale: number; // reading-text size multiplier (0.8–1.5)
+	lastUpdateCheck: number; // epoch ms of the last GitHub release check (24h throttle)
+	dismissedUpdateVersion: string; // release the user dismissed the update banner for
+	lastKnownUpdateVersion: string; // newest release tag a check found newer than this build
+	lastKnownUpdateUrl: string; // release page for lastKnownUpdateVersion
+	autoBackup: boolean; // silently write a backup to Documents when the app is backgrounded
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -54,7 +59,12 @@ export const DEFAULT_PREFS: Prefs = {
 	uaEscalationEnabled: true,
 	feedCacheTtlHours: 24,
 	lastSeenVersion: '',
-	fontScale: 1
+	fontScale: 1,
+	lastUpdateCheck: 0,
+	dismissedUpdateVersion: '',
+	lastKnownUpdateVersion: '',
+	lastKnownUpdateUrl: '',
+	autoBackup: true
 };
 
 const STORAGE_KEY = 'persimmon.prefs';

@@ -42,47 +42,70 @@
 		prefsReady = true;
 	});
 
-	async function load(reset = false) {
-		if (loading) return;
+	// Monotonic token so a forced reload (pull-to-refresh, retry) can supersede
+	// a slow/hung in-flight load: the stale request's results are discarded when
+	// its `gen` no longer matches, and only the newest load owns the `loading`
+	// flag. Without this, `if (loading) return` made every recovery path a no-op
+	// whenever a request wedged.
+	let loadGen = 0;
+
+	async function load(reset = false, force = false) {
+		if (loading && !force) return;
+		const gen = ++loadGen;
 		const v = $prefs.homeView;
 		loading = true;
 		error = null;
 		try {
 			let listing: Listing<Post> | null = null;
+			let stale: number | null = null;
 			if (v === 'subscribed') {
 				const subs = $subscribed.map((s) => s.name);
 				if (subs.length === 0) {
-					posts = [];
-					after = null;
+					if (gen === loadGen) {
+						posts = [];
+						after = null;
+					}
 					return;
 				}
 				const r = await getMergedSubmissions(subs, 'hot', { limitPerSub: 25 });
+				if (gen !== loadGen) return;
 				if (!r.ok) {
 					error = r.error.message;
 					return;
 				}
 				listing = r.data;
-				staleAt = r.meta?.staleAt ?? null;
+				stale = r.meta?.staleAt ?? null;
 			} else {
 				const r = await getSubmissions(
 					v as Sort,
 					undefined,
 					reset ? undefined : { after: after ?? undefined }
 				);
+				if (gen !== loadGen) return;
 				if (!r.ok) {
 					error = r.error.message;
 					return;
 				}
 				listing = r.data;
-				staleAt = r.meta?.staleAt ?? null;
+				stale = r.meta?.staleAt ?? null;
 			}
-			posts = reset ? listing.items : [...posts, ...listing.items];
+			staleAt = stale;
+			if (reset) {
+				posts = listing.items;
+			} else {
+				// Reddit re-ranks listings between page fetches, so a later page
+				// routinely repeats a post already shown — dedupe by id or the
+				// keyed {#each} collides on duplicate keys.
+				const seen = new Set(posts.map((p) => p.id));
+				posts = [...posts, ...listing.items.filter((p) => !seen.has(p.id))];
+			}
 			after = listing.after;
 		} catch (e) {
+			if (gen !== loadGen) return;
 			console.error('home load failed', e);
 			error = e instanceof Error ? e.message : String(e);
 		} finally {
-			loading = false;
+			if (gen === loadGen) loading = false;
 		}
 	}
 
@@ -157,7 +180,7 @@
 		clearCache();
 		posts = [];
 		after = null;
-		await load(true);
+		await load(true, true);
 		window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
 	}
 

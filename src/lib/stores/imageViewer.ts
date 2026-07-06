@@ -11,10 +11,19 @@ import { browser } from '$app/environment';
 
 export type ViewerKind = 'image' | 'video';
 
-export interface ViewerState {
+export interface ViewerItem {
 	url: string;
 	kind: ViewerKind;
 	alt?: string;
+	caption?: string;
+}
+
+// The viewer holds a list of items and the index currently shown. Single-image
+// and single-video opens are just a one-item list, so gallery support is the
+// general case and the old call sites (openImage/openVideo) are thin wrappers.
+export interface ViewerState {
+	items: ViewerItem[];
+	index: number;
 }
 
 export const viewerState = writable<ViewerState | null>(null);
@@ -43,11 +52,28 @@ function open(state: ViewerState) {
 }
 
 export function openImage(url: string, alt?: string): void {
-	open({ url, kind: 'image', alt });
+	open({ items: [{ url, kind: 'image', alt }], index: 0 });
 }
 
 export function openVideo(url: string, alt?: string): void {
-	open({ url, kind: 'video', alt });
+	open({ items: [{ url, kind: 'video', alt }], index: 0 });
+}
+
+export function openGallery(items: ViewerItem[], startIndex = 0): void {
+	if (items.length === 0) return;
+	const index = Math.max(0, Math.min(startIndex, items.length - 1));
+	open({ items, index });
+}
+
+// Swap the shown item WITHOUT touching history (only the open/close transitions
+// push/pop the back-stack marker). Clamps, so a swipe past either end is a no-op
+// the caller can treat as a rubber-band edge.
+export function setViewerIndex(next: number): void {
+	viewerState.update((s) => {
+		if (!s) return s;
+		const index = Math.max(0, Math.min(next, s.items.length - 1));
+		return index === s.index ? s : { ...s, index };
+	});
 }
 
 // Two close paths:

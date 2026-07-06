@@ -46,6 +46,19 @@ const HOST_PRIMARY = 'https://www.reddit.com';
 const HOST_FALLBACK = 'https://old.reddit.com';
 const CACHE_TTL_MS = 60_000;
 const MAX_ATTEMPTS = 3;
+// Hard transport deadlines. Without these, CapacitorHttp/okhttp inherits
+// HttpURLConnection's default of 0 = wait forever, so a Reddit edge that
+// throttles by *stalling* the socket (rather than returning a status) wedges a
+// load-more request permanently — the `loading` flag never clears and every
+// recovery path is gated behind it. Bounding every request means a hung socket
+// fails, gets retried/surfaced, and the spinner always resolves.
+const CONNECT_TIMEOUT_MS = 10_000;
+const READ_TIMEOUT_MS = 20_000; // resets on each chunk received
+// Cap on how long we'll obey a 429 Retry-After before giving up the attempt.
+// Reddit occasionally returns Retry-After: 300 (5 min), which is
+// indistinguishable from a freeze; better to fail the attempt and let the
+// user's retry button take over.
+const MAX_RATE_LIMIT_WAIT_MS = 15_000;
 
 type CacheEntry = { at: number; data: unknown };
 const cache = new Map<string, CacheEntry>();
@@ -97,7 +110,10 @@ interface RawResponse {
 // Access-Control-Allow-Origin:* on the public .json endpoints — the same reason
 // `npm run dev` works in a desktop browser.
 async function rawGetFetch(url: string): Promise<RawResponse> {
-	const res = await fetch(url, { headers: { Accept: 'application/json' } });
+	const res = await fetch(url, {
+		headers: { Accept: 'application/json' },
+		signal: AbortSignal.timeout(READ_TIMEOUT_MS)
+	});
 	const text = await res.text();
 	let parsed: unknown = null;
 	try {
@@ -137,6 +153,8 @@ async function rawGetNative(url: string, ua: string): Promise<RawResponse> {
 			'sec-ch-ua-mobile': '?1',
 			'sec-ch-ua-platform': '"Android"'
 		},
+		connectTimeout: CONNECT_TIMEOUT_MS,
+		readTimeout: READ_TIMEOUT_MS,
 		responseType: 'json'
 	});
 	return { status: res.status, data: res.data, headers: res.headers ?? {} };
@@ -210,6 +228,8 @@ async function rawPost(
 				'Content-Type': 'application/x-www-form-urlencoded'
 			},
 			data: body,
+			connectTimeout: CONNECT_TIMEOUT_MS,
+			readTimeout: READ_TIMEOUT_MS,
 			responseType: 'json'
 		});
 		return { status: res.status, data: res.data, headers: res.headers ?? {} };
@@ -218,7 +238,8 @@ async function rawPost(
 	const res = await fetch(url, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
-		body: params.toString()
+		body: params.toString(),
+		signal: AbortSignal.timeout(READ_TIMEOUT_MS)
 	});
 	const text = await res.text();
 	let parsed: unknown = null;
@@ -256,9 +277,13 @@ async function withRetries(
 				return { ok: true, data: res.data };
 			}
 			if (res.status === 429) {
-				// Honor Retry-After if present (seconds).
+				// Honor Retry-After if present (seconds), but cap it — an
+				// uncapped multi-minute wait is indistinguishable from a freeze.
 				const ra = Number(res.headers['retry-after']);
-				const wait = Number.isFinite(ra) ? ra * 1000 : 500 * 2 ** attempt;
+				const wait = Math.min(
+					Number.isFinite(ra) ? ra * 1000 : 500 * 2 ** attempt,
+					MAX_RATE_LIMIT_WAIT_MS
+				);
 				const jitter = Math.random() * 250;
 				lastErr = { status: 429, message: 'rate-limited' };
 				// One toast per rate-limit event — `key` dedupes while a same-keyed
@@ -400,6 +425,58 @@ export async function fetchBytesNative(url: string): Promise<ArrayBuffer | null>
 		// ignore
 	}
 	return null;
+}
+
+// Parse the total resource length out of a Content-Range header
+// ("bytes 0-524287/1398210" -> 1398210). null if absent/unparseable.
+function parseContentRangeTotal(cr: string | null | undefined): number | null {
+	if (!cr) return null;
+	const m = /\/\s*(\d+)\s*$/.exec(cr);
+	return m ? parseInt(m[1], 10) : null;
+}
+
+// Fetch a byte range of a URL via the native client (okhttp), used to stream
+// v.redd.it video/audio into MediaSource progressively instead of downloading
+// the whole file before playback. Returns the bytes plus the resource's total
+// length (from Content-Range) so the caller knows when it has reached the end.
+// null on failure or a range past the end (416).
+export async function fetchRangeNative(
+	url: string,
+	start: number,
+	end: number
+): Promise<{ bytes: ArrayBuffer; total: number | null } | null> {
+	const range = `bytes=${start}-${end}`;
+	try {
+		if (!IS_NATIVE) {
+			const r = await fetch(url, {
+				headers: { Range: range },
+				signal: AbortSignal.timeout(READ_TIMEOUT_MS)
+			});
+			if (r.status !== 206 && r.status !== 200) return null;
+			return {
+				bytes: await r.arrayBuffer(),
+				total: parseContentRangeTotal(r.headers.get('content-range'))
+			};
+		}
+		const res = await CapacitorHttp.get({
+			url,
+			headers: { Referer: 'https://www.reddit.com/', Range: range },
+			connectTimeout: CONNECT_TIMEOUT_MS,
+			readTimeout: READ_TIMEOUT_MS,
+			responseType: 'arraybuffer'
+		});
+		if (res.status < 200 || res.status >= 300) return null;
+		const headers = res.headers ?? {};
+		const cr = (headers['content-range'] ?? headers['Content-Range']) as string | undefined;
+		const d = res.data as unknown;
+		let bytes: ArrayBuffer | null = null;
+		if (typeof d === 'string') bytes = b64ToBuf(d);
+		else if (d instanceof ArrayBuffer) bytes = d;
+		if (!bytes) return null;
+		return { bytes, total: parseContentRangeTotal(cr) };
+	} catch {
+		return null;
+	}
 }
 
 export const _internals = { UA: UA_LADDER[0], UA_LADDER, HOST_PRIMARY, HOST_FALLBACK };

@@ -50,24 +50,38 @@
 		});
 	});
 
-	async function load(reset = false) {
-		if (loading) return;
+	// Monotonic token so a forced reload (pull-to-refresh, retry) supersedes a
+	// slow/hung in-flight load instead of being blocked by `if (loading) return`.
+	let loadGen = 0;
+
+	async function load(reset = false, force = false) {
+		if (loading && !force) return;
+		const gen = ++loadGen;
 		loading = true;
 		error = null;
 		try {
 			const r = await getSubmissions(sort, sub, reset ? undefined : { after: after ?? undefined });
+			if (gen !== loadGen) return;
 			if (!r.ok) {
 				error = r.error.message;
 				return;
 			}
-			posts = reset ? r.data.items : [...posts, ...r.data.items];
+			if (reset) {
+				posts = r.data.items;
+				staleAt = r.meta?.staleAt ?? null;
+			} else {
+				// Dedupe: Reddit re-ranks between pages, so later pages repeat
+				// posts and the keyed {#each} would collide on duplicate ids.
+				const seen = new Set(posts.map((p) => p.id));
+				posts = [...posts, ...r.data.items.filter((p) => !seen.has(p.id))];
+			}
 			after = r.data.after;
-			if (reset) staleAt = r.meta?.staleAt ?? null;
 		} catch (e) {
+			if (gen !== loadGen) return;
 			console.error('r/[sub] load failed', sub, e);
 			error = e instanceof Error ? e.message : String(e);
 		} finally {
-			loading = false;
+			if (gen === loadGen) loading = false;
 		}
 	}
 
@@ -132,7 +146,7 @@
 		clearCache();
 		posts = [];
 		after = null;
-		await load(true);
+		await load(true, true);
 		window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
 	}
 </script>

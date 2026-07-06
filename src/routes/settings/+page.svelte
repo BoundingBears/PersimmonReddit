@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { IS_NATIVE, IS_IOS } from '$lib/utils/platform';
-	import { Browser } from '@capacitor/browser';
+	import { openExternal } from '$lib/utils/openExternal';
+	import { GITHUB_REPO_URL as GITHUB_URL, KOFI_URL } from '$lib/utils/appLinks';
 	import TopAppBar from '$lib/components/chrome/TopAppBar.svelte';
 	import Icon from '$lib/components/shared/Icon.svelte';
 	import Dropdown from '$lib/components/shared/Dropdown.svelte';
@@ -13,15 +14,18 @@
 	import { feedCache } from '$lib/stores/feedCache';
 	import { filters, type FilterKind } from '$lib/stores/filters';
 	import { openWhatsNew } from '$lib/stores/whatsNew';
+	import { checkForUpdates } from '$lib/stores/updateCheck';
 	import { clearCache } from '$lib/reddit/client';
 	import {
-		exportBackup,
+		serializeBackup,
 		parseBackup,
 		summarize,
 		importBackup,
+		BACKUP_EXTENSION,
 		type Backup,
 		type BackupSummary
 	} from '$lib/utils/backup';
+	import { writeAutoBackup } from '$lib/utils/autoBackup';
 	import { pushToast } from '$lib/stores/toast';
 	import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 	import { Share } from '@capacitor/share';
@@ -31,19 +35,23 @@
 	const accents = ['#d0bcff', '#9ccc65', '#ff8a65', '#4dd0e1', '#f48fb1', '#ffd54f'];
 
 	const APP_VERSION = __APP_VERSION__;
-	const KOFI_URL = 'https://ko-fi.com/boundingbears';
-	const GITHUB_URL = 'https://github.com/BoundingBears/PersimmonReddit';
 
-	async function openExternal(url: string) {
-		try {
-			if (IS_NATIVE) {
-				await Browser.open({ url });
-			} else {
-				window.open(url, '_blank', 'noopener,noreferrer');
-			}
-		} catch {
-			// ignore — browser not available
-		}
+	let checkingUpdate = $state(false);
+	async function checkUpdates() {
+		checkingUpdate = true;
+		// replace:true so a re-tap replaces any lingering result toast with this
+		// one (same key) rather than being deduped against it.
+		pushToast('Checking for updates…', { key: 'update', replace: true, duration: 8000 });
+		const r = await checkForUpdates({ force: true });
+		pushToast(
+			r === 'available'
+				? 'A new version is available'
+				: r === 'up-to-date'
+					? "You're on the latest version"
+					: "Couldn't reach GitHub to check",
+			{ key: 'update', replace: true, duration: 2500 }
+		);
+		checkingUpdate = false;
 	}
 
 	const filterKinds: Array<{ kind: FilterKind; label: string; placeholder: string }> = [
@@ -64,9 +72,9 @@
 	let pendingSummary = $state<BackupSummary | null>(null);
 
 	async function doExport() {
-		const json = JSON.stringify(exportBackup(), null, 2);
+		const json = serializeBackup();
 		const date = new Date().toISOString().slice(0, 10);
-		const filename = `persimmon-backup-${date}.json`;
+		const filename = `persimmon-backup-${date}${BACKUP_EXTENSION}`;
 		try {
 			if (IS_NATIVE) {
 				const path = `Persimmon/${filename}`;
@@ -92,6 +100,14 @@
 			console.error('export failed', e);
 			pushToast('Export failed');
 		}
+	}
+
+	// Enabling the toggle writes one backup right away so protection is immediate
+	// (and the write path is confirmed) instead of waiting to background the app.
+	async function onAutoBackupToggle() {
+		if (!$prefs.autoBackup) return;
+		const ok = await writeAutoBackup();
+		pushToast(ok ? 'Backup saved to Documents/Persimmon' : "Couldn't write to Documents");
 	}
 
 	async function onImportFile(e: Event) {
@@ -283,6 +299,19 @@
 		<div class="row note">
 			<span>Save your subs, saved &amp; hidden posts, filters, and settings to a file — then restore them on a new device or after reinstalling.</span>
 		</div>
+		{#if IS_NATIVE}
+			<label class="row toggle">
+				<span>Auto-backup to Documents</span>
+				<input type="checkbox" bind:checked={$prefs.autoBackup} onchange={onAutoBackupToggle} />
+			</label>
+			<div class="row note">
+				<span
+					>Keeps a current backup at <strong>Documents/Persimmon/</strong> that survives
+					uninstalling the app. Written each time you leave Persimmon. Restore it with Import
+					below.</span
+				>
+			</div>
+		{/if}
 		<button class="action" onclick={doExport}>
 			<Icon name="download" size={18} />
 			<span>Export backup</span>
@@ -294,7 +323,7 @@
 		<input
 			bind:this={fileInput}
 			type="file"
-			accept="application/json,.json"
+			accept="*/*"
 			onchange={onImportFile}
 			hidden
 		/>
@@ -344,6 +373,10 @@
 		<button class="action" onclick={openWhatsNew}>
 			<Icon name="auto_awesome" size={18} />
 			<span>What's new</span>
+		</button>
+		<button class="action" onclick={checkUpdates} disabled={checkingUpdate}>
+			<Icon name="system_update" size={18} />
+			<span>{checkingUpdate ? 'Checking…' : 'Check for updates'}</span>
 		</button>
 		<button class="action" onclick={() => openExternal(GITHUB_URL)}>
 			<Icon name="code" size={18} />

@@ -132,30 +132,44 @@
 	// the DOM once the real list (not the skeletons) renders, and it's recreated
 	// whenever we flip back to skeletons — a one-shot onMount attach misses it,
 	// which silently kills pagination after the first cold load.
+	//
+	// The observer is LEVEL-triggered, not edge-triggered: it just tracks whether
+	// the sentinel is on-screen, and a separate $effect decides whether to load.
+	// Edge-triggering (calling onLoadMore straight from the callback) silently
+	// stalled when an appended page added no height below the sentinel — e.g. a
+	// whole page removed by the keyword/NSFW/read filters — because the sentinel
+	// never *exited* the root margin to re-fire. The effect re-runs whenever
+	// `loading` flips back to false, so it keeps pulling pages until a visible
+	// one lands or the feed genuinely ends.
+	let sentinelVisible = $state(false);
 	$effect(() => {
 		const el = sentinel;
 		if (!el || typeof IntersectionObserver === 'undefined') return;
 		const obs = new IntersectionObserver(
 			(entries) => {
-				for (const e of entries) {
-					// Don't paginate on an empty list (an all-read page would loop
-					// forever) or before the progressive render has caught up.
-					if (
-						e.isIntersecting &&
-						hasMore &&
-						!loading &&
-						onLoadMore &&
-						visible.length > 0 &&
-						renderLimit >= visible.length
-					) {
-						onLoadMore();
-					}
-				}
+				for (const e of entries) sentinelVisible = e.isIntersecting;
 			},
 			{ rootMargin: '600px 0px' }
 		);
 		obs.observe(el);
-		return () => obs.disconnect();
+		return () => {
+			obs.disconnect();
+			sentinelVisible = false;
+		};
+	});
+	$effect(() => {
+		// Don't paginate on an empty list (an all-read page would loop forever)
+		// or before the progressive render has caught up.
+		if (
+			sentinelVisible &&
+			hasMore &&
+			!loading &&
+			onLoadMore &&
+			visible.length > 0 &&
+			renderLimit >= visible.length
+		) {
+			onLoadMore();
+		}
 	});
 
 	function recordContext(post: Post) {

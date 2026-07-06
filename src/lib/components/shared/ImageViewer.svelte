@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Share } from '@capacitor/share';
-	import { Browser } from '@capacitor/browser';
 	import Icon from './Icon.svelte';
-	import { viewerState, closeViewer, installViewerHistoryListener } from '$lib/stores/imageViewer';
+	import { viewerState, closeViewer, setViewerIndex, installViewerHistoryListener } from '$lib/stores/imageViewer';
 	import { IS_NATIVE } from '$lib/utils/platform';
+	import { openExternal } from '$lib/utils/openExternal';
 	import { saveImage } from '$lib/utils/saveImage';
 	import { pinchZoom } from '$lib/actions/pinchZoom';
 
@@ -21,28 +21,50 @@
 		};
 	});
 
+	// The item currently on screen, plus gallery navigation helpers.
+	let current = $derived($viewerState ? $viewerState.items[$viewerState.index] : null);
+	let count = $derived($viewerState ? $viewerState.items.length : 0);
+	let hasGallery = $derived(count > 1);
+
+	function showNext() {
+		if ($viewerState) setViewerIndex($viewerState.index + 1);
+	}
+	function showPrev() {
+		if ($viewerState) setViewerIndex($viewerState.index - 1);
+	}
+
+	// Live vertical drag distance while swiping to dismiss; fades the backdrop
+	// so the image "falls away" as it's dragged. Reset whenever the shown item
+	// changes (e.g. after paging) so a fresh image starts fully opaque.
+	let dragProgress = $state(0);
+	let scrimOpacity = $derived(dragProgress > 0 ? Math.max(0.15, 1 - dragProgress / 400) : 1);
+	$effect(() => {
+		current; // reset the fade when the item swaps
+		dragProgress = 0;
+	});
+
 	let saving = $state(false);
 	let saveStatus = $state<string | null>(null);
 
 	async function save() {
-		if (!$viewerState || saving) return;
+		if (!current || saving) return;
 		saving = true;
 		saveStatus = 'Saving…';
-		const res = await saveImage($viewerState.url);
+		const res = await saveImage(current.url);
 		saveStatus = res.message;
 		saving = false;
 		setTimeout(() => (saveStatus = null), 3000);
 	}
 
 	async function share() {
-		if (!$viewerState) return;
+		if (!current) return;
 		try {
 			if (IS_NATIVE) {
-				await Share.share({ url: $viewerState.url, dialogTitle: 'Share image' });
+				await Share.share({ url: current.url, dialogTitle: 'Share image' });
 			} else if (navigator.share) {
-				await navigator.share({ url: $viewerState.url });
+				await navigator.share({ url: current.url });
 			} else {
-				navigator.clipboard?.writeText($viewerState.url);
+				navigator.clipboard?.writeText(current.url);
 				saveStatus = 'URL copied';
 				setTimeout(() => (saveStatus = null), 2000);
 			}
@@ -52,12 +74,7 @@
 	}
 
 	async function openInBrowser() {
-		if (!$viewerState) return;
-		if (IS_NATIVE) {
-			await Browser.open({ url: $viewerState.url });
-		} else {
-			window.open($viewerState.url, '_blank', 'noopener');
-		}
+		if (current) await openExternal(current.url);
 	}
 
 	function onScrimClick(e: MouseEvent) {
@@ -67,15 +84,20 @@
 
 	function onKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') closeViewer();
+		else if (e.key === 'ArrowRight') showNext();
+		else if (e.key === 'ArrowLeft') showPrev();
 	}
 </script>
 
 <svelte:window onkeydown={onKeydown} />
 
-{#if $viewerState}
-	<div class="scrim" onclick={onScrimClick} role="presentation">
+{#if $viewerState && current}
+	<div class="scrim" onclick={onScrimClick} role="presentation" style="opacity: {scrimOpacity}">
 		<header class="bar top">
 			<button class="iconbtn" onclick={closeViewer} aria-label="Close"><Icon name="close" size={24} /></button>
+			{#if hasGallery}
+				<span class="counter">{$viewerState.index + 1} / {count}</span>
+			{/if}
 			<span class="spacer"></span>
 			<button class="iconbtn" onclick={openInBrowser} aria-label="Open in browser"><Icon name="open_in_new" size={22} /></button>
 			<button class="iconbtn" onclick={share} aria-label="Share"><Icon name="share" size={22} /></button>
@@ -83,17 +105,28 @@
 		</header>
 
 		<div class="media">
-			{#if $viewerState.kind === 'video'}
-				<video src={$viewerState.url} controls autoplay playsinline></video>
+			{#if current.kind === 'video'}
+				<video src={current.url} controls autoplay playsinline></video>
 			{:else}
 				<img
-					src={$viewerState.url}
-					alt={$viewerState.alt ?? ''}
+					src={current.url}
+					alt={current.alt ?? ''}
 					referrerpolicy="no-referrer"
-					use:pinchZoom={{ minScale: 1, maxScale: 4 }}
+					use:pinchZoom={{
+						minScale: 1,
+						maxScale: 4,
+						onSwipeNext: showNext,
+						onSwipePrev: showPrev,
+						onDismiss: closeViewer,
+						onDragProgress: (dy) => (dragProgress = dy)
+					}}
 				/>
 			{/if}
 		</div>
+
+		{#if current.caption}
+			<div class="caption">{current.caption}</div>
+		{/if}
 
 		{#if saveStatus}
 			<div class="toast">{saveStatus}</div>
@@ -162,6 +195,27 @@
 		will-change: transform;
 		user-select: none;
 		-webkit-user-drag: none;
+	}
+	.counter {
+		display: inline-flex;
+		align-items: center;
+		padding: 0 8px;
+		color: #fff;
+		font-size: 14px;
+		font-weight: 500;
+		pointer-events: none;
+	}
+	.caption {
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+		background: linear-gradient(to top, rgba(0, 0, 0, 0.75), transparent);
+		color: #fff;
+		font-size: 13px;
+		text-align: center;
+		pointer-events: none;
 	}
 	.toast {
 		position: absolute;

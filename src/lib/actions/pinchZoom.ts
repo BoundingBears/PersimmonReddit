@@ -15,6 +15,14 @@ export interface PinchZoomOptions {
 	maxScale?: number;
 	doubleTapScale?: number;
 	doubleTapMs?: number;
+	// Gallery / dismiss gestures, only active while NOT zoomed in (scale ===
+	// minScale). Left undefined for viewers that don't want them.
+	onSwipeNext?: () => void;
+	onSwipePrev?: () => void;
+	onDismiss?: () => void;
+	// Live vertical drag distance during a dismiss gesture (px, 0 on release/
+	// cancel) so the host can fade the backdrop as the image is dragged away.
+	onDragProgress?: (dy: number) => void;
 }
 
 const DEFAULTS = {
@@ -23,6 +31,15 @@ const DEFAULTS = {
 	doubleTapScale: 2.5,
 	doubleTapMs: 300
 };
+
+// Movement (px) before a one-finger drag commits to an axis.
+const SWIPE_SLOP = 10;
+// Fraction of viewport width a horizontal swipe must cross to page images.
+const SWIPE_COMMIT_FRACTION = 0.25;
+// Vertical drop (px) that commits to dismiss.
+const DISMISS_COMMIT_PX = 120;
+// px/ms flick velocity that commits regardless of distance.
+const FLICK_VELOCITY = 0.5;
 
 interface Point {
 	x: number;
@@ -46,9 +63,28 @@ export function pinchZoom(node: HTMLElement, options: PinchZoomOptions = {}) {
 	let initialPinch: { distance: number; scale: number; midX: number; midY: number } | null = null;
 	let panStart: { x: number; y: number; tx: number; ty: number } | null = null;
 	let lastTap: { time: number; x: number; y: number } | null = null;
+	// One-finger drag started at scale===minScale: horizontal pages between
+	// images, vertical dismisses. Axis locks once movement passes the slop.
+	let swipe: { x: number; y: number; time: number; axis: 'none' | 'x' | 'y' } | null = null;
 
 	function apply() {
 		node.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+	}
+
+	// Animate tx/ty back to rest (used when a swipe/dismiss doesn't commit) and
+	// clear the backdrop fade. The transition is removed once it finishes so it
+	// never interferes with pinch/pan, which need instant transform updates.
+	function settleBack() {
+		node.style.transition = 'transform 180ms ease-out';
+		tx = 0;
+		ty = 0;
+		apply();
+		opts.onDragProgress?.(0);
+		const clear = () => {
+			node.style.transition = '';
+			node.removeEventListener('transitionend', clear);
+		};
+		node.addEventListener('transitionend', clear);
 	}
 
 	function reset() {
@@ -58,7 +94,10 @@ export function pinchZoom(node: HTMLElement, options: PinchZoomOptions = {}) {
 		initialPinch = null;
 		panStart = null;
 		lastTap = null;
+		swipe = null;
+		node.style.transition = '';
 		pointers.clear();
+		opts.onDragProgress?.(0);
 		apply();
 	}
 
@@ -92,9 +131,20 @@ export function pinchZoom(node: HTMLElement, options: PinchZoomOptions = {}) {
 
 	function down(e: PointerEvent) {
 		pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+		// Never let a settle-back animation bleed into a fresh gesture.
+		node.style.transition = '';
 
 		if (pointers.size === 2) {
-			// Two-finger pinch starts
+			// Two-finger pinch starts. A pinch always wins over an in-progress
+			// swipe, so abandon it and reset any swipe offset instantly (no
+			// transition — pinch needs immediate transform updates).
+			if (swipe && swipe.axis !== 'none') {
+				tx = 0;
+				ty = 0;
+				opts.onDragProgress?.(0);
+				apply();
+			}
+			swipe = null;
 			const [a, b] = [...pointers.values()];
 			initialPinch = {
 				distance: distance(a, b),
@@ -111,6 +161,9 @@ export function pinchZoom(node: HTMLElement, options: PinchZoomOptions = {}) {
 			} catch {
 				// some pointer types don't support capture; ignore
 			}
+		} else if (pointers.size === 1) {
+			// Not zoomed: candidate for a page-swipe or swipe-to-dismiss.
+			swipe = { x: e.clientX, y: e.clientY, time: Date.now(), axis: 'none' };
 		}
 	}
 
@@ -142,6 +195,29 @@ export function pinchZoom(node: HTMLElement, options: PinchZoomOptions = {}) {
 			clampPan();
 			e.preventDefault();
 			apply();
+		} else if (pointers.size === 1 && swipe) {
+			const dx = e.clientX - swipe.x;
+			const dy = e.clientY - swipe.y;
+			if (swipe.axis === 'none') {
+				if (Math.abs(dx) > SWIPE_SLOP || Math.abs(dy) > SWIPE_SLOP) {
+					swipe.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+					panMoved = true; // a drag isn't a tap; don't arm double-tap
+				} else {
+					return; // below slop: still ambiguous, wait
+				}
+			}
+			if (swipe.axis === 'x') {
+				tx = dx;
+				ty = 0;
+			} else {
+				// Vertical drag dismisses in either direction (up or down); the
+				// backdrop fades by the absolute distance travelled.
+				ty = dy;
+				tx = 0;
+				opts.onDragProgress?.(Math.abs(dy));
+			}
+			e.preventDefault();
+			apply();
 		}
 	}
 
@@ -158,6 +234,36 @@ export function pinchZoom(node: HTMLElement, options: PinchZoomOptions = {}) {
 
 		if (pointers.size < 2) initialPinch = null;
 		if (pointers.size === 0) panStart = null;
+
+		// Resolve a one-finger swipe/dismiss on release.
+		if (pointers.size === 0 && swipe) {
+			const s = swipe;
+			swipe = null;
+			if (s.axis !== 'none' && pt) {
+				const dx = pt.x - s.x;
+				const dy = pt.y - s.y;
+				const dt = Math.max(Date.now() - s.time, 1);
+				if (s.axis === 'x') {
+					const vw = node.parentElement?.clientWidth || node.offsetWidth || 1;
+					const commit = Math.abs(dx) > vw * SWIPE_COMMIT_FRACTION || Math.abs(dx) / dt > FLICK_VELOCITY;
+					if (commit) {
+						if (dx < 0) opts.onSwipeNext?.();
+						else opts.onSwipePrev?.();
+					}
+					// If the index changed the host swaps src and the MutationObserver
+					// recenters; otherwise (edge / single image) animate the drag back.
+					settleBack();
+				} else {
+					// Dismiss on a far-enough or fast-enough drag in either direction.
+					const absDy = Math.abs(dy);
+					const commit = absDy > DISMISS_COMMIT_PX || (absDy / dt > FLICK_VELOCITY && absDy > SWIPE_SLOP);
+					if (commit) opts.onDismiss?.();
+					else settleBack();
+				}
+				panMoved = false;
+				return;
+			}
+		}
 
 		// Double-tap detection: only when no pinch was happening and the last
 		// pointerup happened recently and close to this one.
@@ -214,6 +320,11 @@ export function pinchZoom(node: HTMLElement, options: PinchZoomOptions = {}) {
 		}
 		if (pointers.size < 2) initialPinch = null;
 		if (pointers.size === 0) panStart = null;
+		if (pointers.size === 0 && swipe) {
+			const hadDrag = swipe.axis !== 'none';
+			swipe = null;
+			if (hadDrag) settleBack();
+		}
 	}
 
 	node.addEventListener('pointerdown', down);

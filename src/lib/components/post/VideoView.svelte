@@ -3,7 +3,7 @@
 	import type { MediaVideo } from '$lib/reddit/types';
 	import { prefs } from '$lib/stores/prefs';
 	import { IS_NATIVE } from '$lib/utils/platform';
-	import { fetchTextNative, fetchBytesNative } from '$lib/reddit/client';
+	import { fetchTextNative, fetchRangeNative } from '$lib/reddit/client';
 	import Icon from '$lib/components/shared/Icon.svelte';
 
 	interface Props {
@@ -27,6 +27,10 @@
 	let controlsShown = $state(true);
 	let isFullscreen = $state(false);
 	let hideTimer: ReturnType<typeof setTimeout> | null = null;
+	// Spinner while the element has no playable data yet / is re-buffering.
+	let loading = $state(true);
+	// Set on destroy to stop the progressive stream pump mid-flight.
+	let streamAbort = false;
 
 	// Audio: when muxing works the <video> carries its own track; otherwise a
 	// separate synced <audio> provides sound. Either way `muted` drives both.
@@ -91,6 +95,33 @@
 		});
 	}
 
+	function sleep(ms: number): Promise<void> {
+		return new Promise((r) => setTimeout(r, ms));
+	}
+
+	// Seconds of already-buffered media ahead of the current playhead.
+	function bufferedAhead(): number {
+		const v = videoEl;
+		if (!v) return 0;
+		const t = v.currentTime;
+		const b = v.buffered;
+		for (let i = 0; i < b.length; i++) {
+			if (t >= b.start(i) - 0.25 && t <= b.end(i) + 0.25) return b.end(i) - t;
+		}
+		return 0;
+	}
+
+	// Chunk size per ranged request and how far ahead of the playhead we keep
+	// buffered before pausing the download (so we don't pull the whole clip up
+	// front — or at all, if the user scrolls away).
+	const CHUNK = 512 * 1024;
+	const TARGET_AHEAD_S = 12;
+
+	// Progressive mux: pull the video and audio tracks in ranged chunks and
+	// append them to MediaSource as they arrive, so playback can begin after the
+	// first fragment instead of waiting for the whole file. Resolves as soon as
+	// there's enough buffered to start; the rest streams in the background,
+	// throttled to a bounded lookahead.
 	async function setupMux(): Promise<boolean> {
 		if (!video.dashUrl || typeof MediaSource === 'undefined' || !videoEl) return false;
 		const xml = await fetchTextNative(video.dashUrl);
@@ -100,11 +131,7 @@
 		const vMime = `video/mp4; codecs="${tracks.video.codecs}"`;
 		const aMime = `audio/mp4; codecs="${tracks.audio.codecs}"`;
 		if (!MediaSource.isTypeSupported(vMime) || !MediaSource.isTypeSupported(aMime)) return false;
-		const [vBuf, aBuf] = await Promise.all([
-			fetchBytesNative(tracks.video.url),
-			fetchBytesNative(tracks.audio.url)
-		]);
-		if (!vBuf || !aBuf || !videoEl) return false;
+
 		const ms = new MediaSource();
 		mse = ms;
 		videoEl.src = URL.createObjectURL(ms);
@@ -114,10 +141,72 @@
 		});
 		const vSB = ms.addSourceBuffer(vMime);
 		const aSB = ms.addSourceBuffer(aMime);
-		await appendBuffer(vSB, vBuf);
-		await appendBuffer(aSB, aBuf);
-		if (ms.readyState === 'open') ms.endOfStream();
-		return true;
+
+		let vOff = 0;
+		let aOff = 0;
+		let vTotal: number | null = null;
+		let aTotal: number | null = null;
+		let vEof = false;
+		let aEof = false;
+		let started = false;
+		let resolveReady!: () => void;
+		const ready = new Promise<void>((r) => (resolveReady = r));
+
+		// Fetch + append one chunk of a track; report the new offset, learned
+		// total length, and whether we've reached the end.
+		async function pump(
+			url: string,
+			sb: SourceBuffer,
+			off: number,
+			total: number | null
+		): Promise<{ off: number; total: number | null; eof: boolean }> {
+			const res = await fetchRangeNative(url, off, off + CHUNK - 1);
+			if (!res || res.bytes.byteLength === 0) return { off, total, eof: true };
+			const t = total ?? res.total;
+			await appendBuffer(sb, res.bytes);
+			const next = off + res.bytes.byteLength;
+			const eof = (t != null && next >= t) || res.bytes.byteLength < CHUNK;
+			return { off: next, total: t, eof };
+		}
+
+		(async () => {
+			try {
+				while (!streamAbort && !(vEof && aEof)) {
+					// Throttle once we're comfortably ahead of the playhead.
+					if (started && vOff > 0 && bufferedAhead() >= TARGET_AHEAD_S) {
+						await sleep(300);
+						continue;
+					}
+					if (!vEof) {
+						const r = await pump(tracks.video.url, vSB, vOff, vTotal);
+						vOff = r.off;
+						vTotal = r.total;
+						vEof = r.eof;
+					}
+					if (streamAbort) break;
+					if (!aEof) {
+						const r = await pump(tracks.audio.url, aSB, aOff, aTotal);
+						aOff = r.off;
+						aTotal = r.total;
+						aEof = r.eof;
+					}
+					// Enough buffered to begin once both tracks have a first chunk.
+					if (!started && vOff > 0 && aOff > 0) {
+						started = true;
+						resolveReady();
+					}
+				}
+				if (!streamAbort && ms.readyState === 'open') ms.endOfStream();
+			} catch {
+				// stream error — stop; if nothing was buffered, onMount's caller
+				// falls back to a plain <video> src below.
+			} finally {
+				resolveReady();
+			}
+		})();
+
+		await ready;
+		return started;
 	}
 
 	// ---------- Fallback: video-only MP4 + separate synced <audio> ----------
@@ -278,6 +367,7 @@
 	});
 
 	onDestroy(() => {
+		streamAbort = true; // stop the progressive pump so it doesn't keep fetching
 		if (hideTimer) clearTimeout(hideTimer);
 		hls?.destroy();
 		for (const fn of cleanups) fn();
@@ -312,10 +402,17 @@
 			playing = false;
 			controlsShown = true;
 		}}
+		onwaiting={() => (loading = true)}
+		onplaying={() => (loading = false)}
+		oncanplay={() => (loading = false)}
 		ontimeupdate={() => (currentTime = videoEl?.currentTime ?? 0)}
 		onloadedmetadata={() => (duration = videoEl?.duration ?? 0)}
 		ondurationchange={() => (duration = videoEl?.duration ?? 0)}
 	></video>
+
+	{#if loading}
+		<div class="spinner" aria-label="Loading video"></div>
+	{/if}
 
 	{#if !video.isGif && controlsShown}
 		<button class="center" onclick={togglePlay} aria-label={playing ? 'Pause' : 'Play'}>
@@ -386,6 +483,24 @@
 		border-radius: 32px;
 		background: rgba(0, 0, 0, 0.5);
 		color: #fff;
+	}
+	.spinner {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		width: 40px;
+		height: 40px;
+		margin: -20px 0 0 -20px;
+		border: 3px solid rgba(255, 255, 255, 0.25);
+		border-top-color: #fff;
+		border-radius: 50%;
+		animation: video-spin 0.8s linear infinite;
+		pointer-events: none;
+	}
+	@keyframes video-spin {
+		to {
+			transform: rotate(360deg);
+		}
 	}
 	.bar {
 		position: absolute;
