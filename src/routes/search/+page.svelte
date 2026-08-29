@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { onDestroy, untrack } from 'svelte';
+	import { afterNavigate, goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import TopAppBar from '$lib/components/chrome/TopAppBar.svelte';
 	import PostCompact from '$lib/components/feed/PostCompact.svelte';
@@ -9,6 +9,11 @@
 	import { searchPosts, searchSubreddits, searchUsers } from '$lib/reddit/endpoints';
 	import { subscribed } from '$lib/stores/subscribed';
 	import { tick as haptic } from '$lib/utils/haptics';
+	import {
+		captureScrollAnchor,
+		restoreScrollAnchor,
+		type ScrollAnchor
+	} from '$lib/utils/scrollRestore';
 	import type { Post, Subreddit, User } from '$lib/reddit/types';
 
 	function isSubbed(name: string): boolean {
@@ -109,14 +114,29 @@
 	// Persist result arrays across navigations so the swipe-back peek
 	// transitions seamlessly into the real page (no flash + refetch).
 	// q and tab are already restored via the URL.
+	//
+	// Scroll is restored here rather than left to SvelteKit: SvelteKit applies
+	// its saved offset before snapshot.restore() repopulates the results, so it
+	// gets clamped against an empty page and lands the user at the top.
+	type Snap = { posts: Post[]; subs: Subreddit[]; users: User[]; anchor: ScrollAnchor };
+	let pendingAnchor: ScrollAnchor | null = null;
 	export const snapshot = {
-		capture: () => ({ posts, subs, users }),
-		restore: (v: { posts: Post[]; subs: Subreddit[]; users: User[] }) => {
+		capture: (): Snap => ({ posts, subs, users, anchor: captureScrollAnchor() }),
+		restore: (v: Snap) => {
 			posts = v.posts;
 			subs = v.subs;
 			users = v.users;
+			pendingAnchor = v.anchor ?? null;
 		}
 	};
+
+	let cancelRestore: (() => void) | null = null;
+	afterNavigate(() => {
+		if (!pendingAnchor) return;
+		cancelRestore = restoreScrollAnchor(pendingAnchor);
+		pendingAnchor = null;
+	});
+	onDestroy(() => cancelRestore?.());
 </script>
 
 <TopAppBar title="Search" />

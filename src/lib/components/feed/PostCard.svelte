@@ -64,6 +64,7 @@
 
 <article
 	class="card"
+	data-post-id={post.id}
 	onclick={open}
 	onkeydown={(e) => e.key === 'Enter' && open()}
 	tabindex="0"

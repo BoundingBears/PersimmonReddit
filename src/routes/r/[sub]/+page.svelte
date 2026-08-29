@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { onDestroy, untrack } from 'svelte';
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { page } from '$app/stores';
 	import TopAppBar from '$lib/components/chrome/TopAppBar.svelte';
@@ -14,6 +14,7 @@
 	import { prefs } from '$lib/stores/prefs';
 	import { openSubredditInfo } from '$lib/stores/subredditInfo';
 	import { getFeedSnapshot, saveFeedSnapshot } from '$lib/stores/feedSnapshot';
+	import { captureScrollAnchor, restoreScrollAnchor } from '$lib/utils/scrollRestore';
 	import type { Post, Sort } from '$lib/reddit/types';
 
 	let sub = $derived($page.params.sub ?? '');
@@ -99,24 +100,23 @@
 		});
 	});
 
+	// Anchored on the post that was at the top of the viewport, so late layout
+	// (lazy images, the stale banner, a just-read post filtered out) can't shift
+	// the user onto a different post. See scrollRestore.ts.
+	let cancelRestore: (() => void) | null = null;
 	afterNavigate(() => {
 		if (scrollRestored || !initialSnap) return;
 		scrollRestored = true;
-		requestAnimationFrame(() =>
-			requestAnimationFrame(() => {
-				window.scrollTo({
-					top: initialSnap.scrollY,
-					behavior: 'instant' as ScrollBehavior
-				});
-			})
-		);
+		cancelRestore = restoreScrollAnchor(initialSnap);
 	});
+	onDestroy(() => cancelRestore?.());
 
-	// Save in beforeNavigate (not onDestroy) so we capture the real scrollY
-	// before the page DOM unmounts and the browser clamps it to 0.
+	// Save in beforeNavigate (not onDestroy) so we capture the real position
+	// before the page DOM unmounts and the browser clamps scrollY to 0.
 	beforeNavigate(() => {
 		if (typeof window === 'undefined' || posts.length === 0) return;
-		saveFeedSnapshot(snapshotKey, { posts, after, sort, scrollY: window.scrollY });
+		cancelRestore?.();
+		saveFeedSnapshot(snapshotKey, { posts, after, sort, ...captureScrollAnchor() });
 	});
 
 	let isSubbed = $derived(

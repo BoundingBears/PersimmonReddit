@@ -10,6 +10,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.3.2',
+		title: 'Back button keeps your place',
+		items: [
+			'↩️ Going back from a post drops you exactly where you were — Persimmon now remembers which post you were looking at, not just how far down the page you’d scrolled, so late-loading images can’t nudge you onto a different post.',
+			'🗂️ Subscribed and custom feeds keep their place too — they used to refetch and reshuffle every time you backed out of a post, landing you somewhere you’d never been. Profiles and search results now hold their position as well.',
+			'👉 Swiping left and right between posts works — the gesture had been quietly doing nothing.',
+			'📌 The feed no longer jumps to the top on its own after you change a setting or dismiss a banner.'
+		]
+	},
+	{
 		version: '1.3.1',
 		title: 'Faster videos, a better image viewer & safer backups',
 		items: [

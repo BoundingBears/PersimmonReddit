@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, untrack } from 'svelte';
+	import { onDestroy, onMount, untrack } from 'svelte';
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import TopAppBar from '$lib/components/chrome/TopAppBar.svelte';
 	import FeedList from '$lib/components/feed/FeedList.svelte';
@@ -10,6 +10,7 @@
 	import { prefs, type HomeView } from '$lib/stores/prefs';
 	import { subscribed } from '$lib/stores/subscribed';
 	import { getFeedSnapshot, saveFeedSnapshot } from '$lib/stores/feedSnapshot';
+	import { captureScrollAnchor, restoreScrollAnchor } from '$lib/utils/scrollRestore';
 	import type { Listing, Post, Sort } from '$lib/reddit/types';
 
 	let staleAt = $state<number | null>(null);
@@ -109,17 +110,30 @@
 		}
 	}
 
+	// Read the two things the reload effect actually depends on through $derived
+	// so it re-runs on a *value* change, not on any store write.
+	//
+	// `$prefs` is a plain writable holding one big object, so reading
+	// `$prefs.homeView` directly inside the effect subscribed it to every
+	// preference: dismissing the update banner, closing the What's New sheet, or
+	// the once-a-day checkForUpdates() stamping `lastUpdateCheck` all re-ran the
+	// effect, which wipes `posts` and refetches — dumping the user back at the
+	// top of a fresh feed mid-scroll. Same for `$subscribed`, whose array
+	// identity changes on any write to that store.
+	let homeView = $derived($prefs.homeView);
+	// Tracked so that if the subscribed store hydrates from preferences AFTER
+	// the first effect run, we reload rather than leaving posts=[] forever (the
+	// empty-subs early-return in load()) until the app is fully restarted.
+	let subsKey = $derived(
+		$prefs.homeView === 'subscribed' ? $subscribed.map((s) => s.name).join(',') : ''
+	);
+
 	$effect(() => {
 		// Gate first load on prefs hydration so we don't fetch front-page-hot
 		// briefly before switching to the user's persisted preference.
 		if (!prefsReady) return;
-		$prefs.homeView; // track for changes
-		// Also track $subscribed when in subscribed mode — without this, if
-		// the subscribed store hydrates from preferences AFTER the first
-		// effect run, the empty-subs early-return at the top of load() leaves
-		// posts=[] forever and the user sees "No posts" until the app is
-		// fully restarted.
-		if ($prefs.homeView === 'subscribed') $subscribed;
+		homeView;
+		subsKey;
 		untrack(() => {
 			if (restored) {
 				restored = false;
@@ -146,20 +160,17 @@
 		return () => document.removeEventListener('visibilitychange', onVisible);
 	});
 
-	// afterNavigate runs after the route transition (including the View
-	// Transitions API animation) is fully committed, so scrollTo here is
-	// guaranteed to land on the laid-out new page rather than getting
-	// captured into a transition snapshot at scroll=0.
+	// Restore by anchor post rather than raw offset — the page settles at a
+	// slightly different height than we left it (lazy images, the stale banner,
+	// a just-read post dropped by the hide-read filter), and a raw offset lands
+	// on a different post every time. See scrollRestore.ts.
+	let cancelRestore: (() => void) | null = null;
 	afterNavigate(() => {
 		if (scrollRestored || !snap) return;
 		scrollRestored = true;
-		// Two rAFs to ensure the post-card list has finished its first paint.
-		requestAnimationFrame(() =>
-			requestAnimationFrame(() => {
-				window.scrollTo({ top: snap.scrollY, behavior: 'instant' as ScrollBehavior });
-			})
-		);
+		cancelRestore = restoreScrollAnchor(snap);
 	});
+	onDestroy(() => cancelRestore?.());
 
 	// IMPORTANT: capture scroll in beforeNavigate, NOT onDestroy.
 	// onDestroy fires AFTER the component's DOM is removed, at which point
@@ -168,11 +179,12 @@
 	// beforeNavigate runs while the page is still mounted and scrolled.
 	beforeNavigate(() => {
 		if (typeof window === 'undefined' || posts.length === 0) return;
+		cancelRestore?.();
 		saveFeedSnapshot(SNAPSHOT_KEY, {
 			posts,
 			after,
 			sort: $prefs.homeView,
-			scrollY: window.scrollY
+			...captureScrollAnchor()
 		});
 	});
 

@@ -1,11 +1,17 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { onDestroy, untrack } from 'svelte';
+	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/stores';
 	import TopAppBar from '$lib/components/chrome/TopAppBar.svelte';
 	import PostCompact from '$lib/components/feed/PostCompact.svelte';
 	import CommentNode from '$lib/components/comments/CommentNode.svelte';
 	import { formatScore } from '$lib/utils/format';
 	import { getUser, getUserOverviewListing } from '$lib/reddit/endpoints';
+	import {
+		captureScrollAnchor,
+		restoreScrollAnchor,
+		type ScrollAnchor
+	} from '$lib/utils/scrollRestore';
 	import type { Comment, Post, User } from '$lib/reddit/types';
 
 	let username = $derived($page.params.user ?? '');
@@ -66,16 +72,30 @@
 
 	// Persist tab + items across navigations so swiping back lands on the
 	// same tab and scroll position the user left from, matching the peek.
-	type Snap = { tab: typeof tab; items: typeof items; after: typeof after };
+	//
+	// The scroll position has to be restored by us, not by SvelteKit: SvelteKit
+	// applies its saved offset *before* it calls snapshot.restore(), so it is
+	// clamped against a still-empty list and the user lands near the top.
+	type Snap = { tab: typeof tab; items: typeof items; after: typeof after; anchor: ScrollAnchor };
+	let pendingAnchor: ScrollAnchor | null = null;
 	export const snapshot = {
-		capture: (): Snap => ({ tab, items, after }),
+		capture: (): Snap => ({ tab, items, after, anchor: captureScrollAnchor() }),
 		restore: (v: Snap) => {
 			restoring = true;
 			tab = v.tab;
 			items = v.items;
 			after = v.after;
+			pendingAnchor = v.anchor ?? null;
 		}
 	};
+
+	let cancelRestore: (() => void) | null = null;
+	afterNavigate(() => {
+		if (!pendingAnchor) return;
+		cancelRestore = restoreScrollAnchor(pendingAnchor);
+		pendingAnchor = null;
+	});
+	onDestroy(() => cancelRestore?.());
 </script>
 
 <TopAppBar title="u/{username}" subtitle={user ? `${formatScore(user.totalKarma)} karma` : ''} showBack />
@@ -111,7 +131,7 @@
 		{#if item.kind === 'post'}
 			<PostCompact post={item.post} />
 		{:else}
-			<div class="comment-row">
+			<div class="comment-row" data-post-id={`c-${item.comment.fullId}`}>
 				<a class="post-ref" href={`/comments/${item.comment.permalink.split('/')[4] ?? ''}`}>
 					on a post in r/{item.comment.permalink.split('/')[2] ?? ''}
 				</a>

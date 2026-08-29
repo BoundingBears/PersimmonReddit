@@ -25,6 +25,7 @@
 
 <button
 	class="tile"
+	data-post-id={post.id}
 	class:visited
 	onclick={open}
 	aria-label={post.title}

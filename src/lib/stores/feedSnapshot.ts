@@ -10,12 +10,12 @@
 // app process kill, which is the right tradeoff — fresh start, fresh data.
 
 import type { CommentSort, Post, Sort } from '$lib/reddit/types';
+import type { ScrollAnchor } from '$lib/utils/scrollRestore';
 
-export interface FeedSnapshot {
+export interface FeedSnapshot extends ScrollAnchor {
 	posts: Post[];
 	after: string | null;
 	sort: Sort | CommentSort | string;
-	scrollY: number;
 }
 
 const snapshots = new Map<string, FeedSnapshot>();

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { onDestroy, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import TopAppBar from '$lib/components/chrome/TopAppBar.svelte';
@@ -12,7 +12,7 @@
 	import { prefs } from '$lib/stores/prefs';
 	import { readPosts } from '$lib/stores/readPosts';
 	import { IS_IOS } from '$lib/utils/platform';
-	import { peekEntry } from '$lib/stores/history';
+	import { getFeedContext } from '$lib/stores/history';
 	import { swipeNav } from '$lib/utils/swipeNav';
 	import { pullToRefresh, type PullToRefreshState } from '$lib/actions/pullToRefresh';
 	import type { CommentNode, CommentSort, Post } from '$lib/reddit/types';
@@ -27,12 +27,24 @@
 
 	const sortOptions: CommentSort[] = ['best', 'top', 'new', 'controversial', 'old', 'qa'];
 
+	// Monotonic token + a destroyed flag so a slow load that resolves after the
+	// user has already gone back can't scroll the *feed* to the top — that was
+	// silently undoing the feed's own scroll restoration on a fast back-press.
+	let loadGen = 0;
+	let destroyed = false;
+	onDestroy(() => {
+		destroyed = true;
+		loadGen++;
+	});
+
 	async function load() {
 		if (!id) return;
+		const gen = ++loadGen;
 		loading = true;
 		error = null;
 		try {
 			const r = await getSubmissionComments(id, { sort });
+			if (gen !== loadGen || destroyed) return;
 			if (!r.ok) {
 				error = r.error.message;
 				return;
@@ -42,10 +54,11 @@
 			if ($prefs.markPostsRead) readPosts.mark(id);
 			window.scrollTo({ top: 0 });
 		} catch (e) {
+			if (gen !== loadGen || destroyed) return;
 			console.error('post detail load failed', id, e);
 			error = e instanceof Error ? e.message : String(e);
 		} finally {
-			loading = false;
+			if (gen === loadGen) loading = false;
 		}
 	}
 
@@ -56,12 +69,12 @@
 	});
 
 	function navigate(direction: 'prev' | 'next') {
-		const entry = peekEntry();
-		if (!entry?.feedItemIds) return;
-		const idx = entry.feedItemIds.indexOf(id);
+		const ctx = getFeedContext();
+		if (!ctx?.feedItemIds.length) return;
+		const idx = ctx.feedItemIds.indexOf(id);
 		if (idx === -1) return;
 		const targetIdx = direction === 'prev' ? idx - 1 : idx + 1;
-		const targetId = entry.feedItemIds[targetIdx];
+		const targetId = ctx.feedItemIds[targetIdx];
 		if (targetId) goto(`/comments/${targetId}`);
 	}
 
