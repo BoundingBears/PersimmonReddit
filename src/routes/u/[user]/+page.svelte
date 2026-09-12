@@ -1,4 +1,6 @@
 <script lang="ts">
+	import ErrorState from '$lib/components/shared/ErrorState.svelte';
+	import EmptyState from '$lib/components/shared/EmptyState.svelte';
 	import { onDestroy, untrack } from 'svelte';
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -112,7 +114,7 @@
 	</header>
 {/if}
 
-<nav class="tabs" role="tablist">
+<div class="tabs" role="tablist">
 	{#each ['overview', 'posts', 'comments'] as t}
 		<button
 			class="tab"
@@ -122,9 +124,9 @@
 			{t}
 		</button>
 	{/each}
-</nav>
+</div>
 
-{#if error}<div class="error">{error}</div>{/if}
+{#if error}<ErrorState message={error} />{/if}
 
 <div class="list">
 	{#each items as item, i (item.kind === 'post' ? `p-${item.post.id}` : `c-${item.comment.fullId}`)}
@@ -141,12 +143,10 @@
 	{/each}
 	{#if loading}<div class="status">Loading…</div>{/if}
 	{#if !loading && !error && items.length === 0}
-		<div class="empty">
-			<div class="empty-title">Nothing here yet</div>
-			<div class="empty-sub">
-				u/{username} has no {tab === 'overview' ? 'activity' : tab}.
-			</div>
-		</div>
+		<EmptyState
+			title="Nothing here yet"
+			body={`u/${username} has no ${tab === 'overview' ? 'activity' : tab}.`}
+		/>
 	{/if}
 	{#if !loading && after}
 		<button class="more" onclick={() => loadFeed(false)}>Load more</button>
@@ -168,12 +168,12 @@
 		object-fit: cover;
 	}
 	.stats {
-		font-size: 13px;
+		font-size: var(--type-secondary);
 		color: var(--md-sys-color-on-surface-variant);
 	}
 	.stats strong {
 		color: var(--md-sys-color-on-surface);
-		font-weight: 600;
+		font-weight: var(--weight-heading);
 	}
 	.tabs {
 		display: flex;
@@ -182,8 +182,8 @@
 	.tab {
 		flex: 1;
 		padding: 10px;
-		font-size: 13px;
-		font-weight: 500;
+		font-size: var(--type-secondary);
+		font-weight: var(--weight-title);
 		color: var(--md-sys-color-on-surface-variant);
 		text-transform: capitalize;
 		border-bottom: 2px solid transparent;
@@ -201,7 +201,7 @@
 		border-bottom: 1px solid var(--md-sys-color-outline-variant);
 	}
 	.post-ref {
-		font-size: 12px;
+		font-size: var(--type-meta);
 		color: var(--md-sys-color-primary);
 	}
 	.status,
@@ -211,26 +211,7 @@
 		color: var(--md-sys-color-on-surface-variant);
 	}
 	.more {
-		font-weight: 500;
+		font-weight: var(--weight-title);
 		color: var(--md-sys-color-primary);
-	}
-	.error {
-		padding: 12px 16px;
-		background: var(--md-sys-color-error);
-		color: var(--md-sys-color-on-error);
-	}
-	.empty {
-		padding: 48px 24px;
-		text-align: center;
-		color: var(--md-sys-color-on-surface-variant);
-	}
-	.empty-title {
-		font-size: 15px;
-		font-weight: 500;
-		color: var(--md-sys-color-on-surface);
-		margin-bottom: 4px;
-	}
-	.empty-sub {
-		font-size: 13px;
 	}
 </style>

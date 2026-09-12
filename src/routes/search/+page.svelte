@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ErrorState from '$lib/components/shared/ErrorState.svelte';
 	import { onDestroy, untrack } from 'svelte';
 	import { afterNavigate, goto } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -147,15 +148,15 @@
 	<button onclick={() => { syncUrl(); run(); }} class="go" disabled={!q.trim() || loading}>Go</button>
 </div>
 
-<nav class="tabs" role="tablist">
+<div class="tabs" role="tablist">
 	{#each TABS as t}
 		<button class="tab" class:active={tab === t} onclick={() => selectTab(t)}>
 			{t}
 		</button>
 	{/each}
-</nav>
+</div>
 
-{#if error}<div class="error">{error}</div>{/if}
+{#if error}<ErrorState message={error} />{/if}
 {#if loading}<div class="status">Searching…</div>{/if}
 
 {#if tab === 'posts'}
@@ -226,7 +227,7 @@
 		border-radius: 20px;
 		background: var(--md-sys-color-primary);
 		color: var(--md-sys-color-on-primary);
-		font-weight: 500;
+		font-weight: var(--weight-title);
 	}
 	.go:disabled {
 		opacity: 0.5;
@@ -238,8 +239,8 @@
 	.tab {
 		flex: 1;
 		padding: 10px;
-		font-size: 13px;
-		font-weight: 500;
+		font-size: var(--type-secondary);
+		font-weight: var(--weight-title);
 		color: var(--md-sys-color-on-surface-variant);
 		text-transform: capitalize;
 		border-bottom: 2px solid transparent;
@@ -297,15 +298,15 @@
 		min-width: 0;
 	}
 	.sub-name {
-		font-weight: 500;
-		font-size: 14px;
+		font-weight: var(--weight-title);
+		font-size: var(--type-body);
 	}
 	.sub-stats {
-		font-size: 11px;
+		font-size: var(--type-caption);
 		color: var(--md-sys-color-on-surface-variant);
 	}
 	.sub-desc {
-		font-size: 12px;
+		font-size: var(--type-meta);
 		color: var(--md-sys-color-on-surface-variant);
 		margin-top: 4px;
 		display: -webkit-box;
@@ -318,10 +319,5 @@
 		padding: 16px;
 		text-align: center;
 		color: var(--md-sys-color-on-surface-variant);
-	}
-	.error {
-		padding: 12px 16px;
-		background: var(--md-sys-color-error);
-		color: var(--md-sys-color-on-error);
 	}
 </style>

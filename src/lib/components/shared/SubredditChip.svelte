@@ -12,7 +12,7 @@
 
 <style>
 	.chip {
-		font-weight: 500;
+		font-weight: var(--weight-title);
 		color: var(--md-sys-color-on-surface);
 		text-decoration: underline;
 		text-decoration-color: var(--md-sys-color-outline-variant);

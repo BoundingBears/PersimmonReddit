@@ -52,4 +52,10 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- In-app updater: lets Persimmon hand a downloaded release APK to the
+         system package installer. The user still confirms in the platform's own
+         install dialog (and must grant "install unknown apps" once) — this only
+         removes the detour through a browser and the Downloads folder. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 </manifest>

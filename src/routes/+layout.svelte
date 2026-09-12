@@ -19,7 +19,6 @@
 	import SubredditInfoSheet from '$lib/components/shared/SubredditInfoSheet.svelte';
 	import FeedEditSheet from '$lib/components/shared/FeedEditSheet.svelte';
 	import Toast from '$lib/components/shared/Toast.svelte';
-	import UpdateBanner from '$lib/components/shared/UpdateBanner.svelte';
 	import { openWhatsNewIfUpdated } from '$lib/stores/whatsNew';
 	import { checkForUpdates } from '$lib/stores/updateCheck';
 	import { startAutoBackup } from '$lib/utils/autoBackup';
@@ -138,7 +137,6 @@
 
 <div class="app" use:edgeSwipeBack>
 	<main class="main">
-		<UpdateBanner />
 		{@render children()}
 	</main>
 	<BottomNav />

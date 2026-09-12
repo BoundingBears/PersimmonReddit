@@ -1,9 +1,11 @@
 <script lang="ts">
+	import EmptyState from '$lib/components/shared/EmptyState.svelte';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import TopAppBar from '$lib/components/chrome/TopAppBar.svelte';
 	import Icon from '$lib/components/shared/Icon.svelte';
 	import RelativeTime from '$lib/components/shared/RelativeTime.svelte';
+	import { undoableClear } from '$lib/utils/undoable';
 	import { hidden, type HiddenEntry } from '$lib/stores/hidden';
 	import { pushToast } from '$lib/stores/toast';
 	import { tick as haptic } from '$lib/utils/haptics';
@@ -43,20 +45,14 @@
 	}
 
 	function clearAll() {
-		const count = $hidden.size;
-		if (count === 0) return;
 		const snapshot = [...$hidden.values()];
-		hidden.clear();
-		haptic();
-		pushToast(`Cleared ${count} hidden posts`, {
-			duration: 6000,
-			action: {
-				label: 'Undo',
-				onClick: () => {
-					for (const entry of snapshot) {
-						hidden.hide(entry.id, entry);
-					}
-				}
+		undoableClear({
+			count: snapshot.length,
+			singular: 'hidden post',
+			plural: 'hidden posts',
+			perform: () => hidden.clear(),
+			undo: () => {
+				for (const entry of snapshot) hidden.hide(entry.id, entry);
 			}
 		});
 	}
@@ -71,10 +67,7 @@
 </TopAppBar>
 
 {#if entries.length === 0}
-	<div class="empty">
-		<div class="empty-title">No hidden posts</div>
-		<div class="empty-sub">Long-press a post in any feed and tap "Hide" to hide it from feeds.</div>
-	</div>
+	<EmptyState title="No hidden posts" body={'Long-press a post in any feed and tap "Hide" to hide it from feeds.'} />
 {:else}
 	<ul class="list">
 		{#each entries as entry (entry.id)}
@@ -110,7 +103,7 @@
 	.clear {
 		padding: 6px 12px;
 		font: inherit;
-		font-size: 13px;
+		font-size: var(--type-secondary);
 		color: var(--md-sys-color-error);
 		background: transparent;
 		border: 1px solid var(--md-sys-color-outline-variant);
@@ -164,8 +157,8 @@
 		color: inherit;
 	}
 	.title {
-		font-size: 14px;
-		font-weight: 500;
+		font-size: var(--type-body);
+		font-weight: var(--weight-title);
 		line-height: 1.3;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
@@ -175,7 +168,7 @@
 		color: var(--md-sys-color-on-surface);
 	}
 	.meta {
-		font-size: 12px;
+		font-size: var(--type-meta);
 		color: var(--md-sys-color-on-surface-variant);
 		display: flex;
 		gap: 6px;
@@ -197,19 +190,5 @@
 	}
 	.unhide:active {
 		background: var(--md-sys-color-surface-container-high);
-	}
-	.empty {
-		padding: 48px 24px;
-		text-align: center;
-		color: var(--md-sys-color-on-surface-variant);
-	}
-	.empty-title {
-		font-size: 15px;
-		font-weight: 500;
-		color: var(--md-sys-color-on-surface);
-		margin-bottom: 4px;
-	}
-	.empty-sub {
-		font-size: 13px;
 	}
 </style>

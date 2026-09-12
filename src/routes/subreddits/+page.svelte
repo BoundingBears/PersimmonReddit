@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ErrorState from '$lib/components/shared/ErrorState.svelte';
 	import { untrack } from 'svelte';
 	import { get } from 'svelte/store';
 	import TopAppBar from '$lib/components/chrome/TopAppBar.svelte';
@@ -97,7 +98,7 @@
 
 <section class="section">
 	<h2 class="section-title">Popular</h2>
-	{#if error}<div class="error">{error}</div>{/if}
+	{#if error}<ErrorState message={error} />{/if}
 	{#each subs as s (s.name)}
 		<div class="sub-row">
 			<a class="row-link" href={`/r/${s.name}`}>
@@ -143,17 +144,11 @@
 	.section-title {
 		margin: 0;
 		padding: 12px 16px 6px;
-		font-size: 13px;
-		font-weight: 600;
+		font-size: var(--type-secondary);
+		font-weight: var(--weight-heading);
 		color: var(--md-sys-color-on-surface-variant);
 		text-transform: uppercase;
 		letter-spacing: 0.5px;
-	}
-	.row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 8px 16px;
 	}
 	.row-link {
 		flex: 1;
@@ -195,14 +190,14 @@
 		min-width: 0;
 	}
 	.name {
-		font-weight: 500;
+		font-weight: var(--weight-title);
 	}
 	.stats {
-		font-size: 11px;
+		font-size: var(--type-caption);
 		color: var(--md-sys-color-on-surface-variant);
 	}
 	.desc {
-		font-size: 12px;
+		font-size: var(--type-meta);
 		color: var(--md-sys-color-on-surface-variant);
 		margin-top: 2px;
 		display: -webkit-box;
@@ -228,14 +223,10 @@
 		padding: 12px;
 		text-align: center;
 		color: var(--md-sys-color-on-surface-variant);
-		font-size: 13px;
+		font-size: var(--type-secondary);
 	}
 	.more {
-		font-weight: 500;
+		font-weight: var(--weight-title);
 		color: var(--md-sys-color-primary);
-	}
-	.error {
-		padding: 12px 16px;
-		color: var(--md-sys-color-error);
 	}
 </style>

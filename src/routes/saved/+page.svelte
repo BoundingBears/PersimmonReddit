@@ -1,8 +1,10 @@
 <script lang="ts">
+	import EmptyState from '$lib/components/shared/EmptyState.svelte';
 	import { goto } from '$app/navigation';
 	import TopAppBar from '$lib/components/chrome/TopAppBar.svelte';
 	import Icon from '$lib/components/shared/Icon.svelte';
 	import RelativeTime from '$lib/components/shared/RelativeTime.svelte';
+	import { undoableClear } from '$lib/utils/undoable';
 	import { saved, type SavedEntry } from '$lib/stores/saved';
 	import { prefs } from '$lib/stores/prefs';
 	import { IS_IOS } from '$lib/utils/platform';
@@ -33,18 +35,14 @@
 	}
 
 	function clearAll() {
-		const count = $saved.size;
-		if (count === 0) return;
 		const snapshot = [...$saved.values()];
-		saved.clear();
-		haptic();
-		pushToast(`Cleared ${count} saved posts`, {
-			duration: 6000,
-			action: {
-				label: 'Undo',
-				onClick: () => {
-					for (const entry of snapshot) saved.save(entry.id, entry);
-				}
+		undoableClear({
+			count: snapshot.length,
+			singular: 'saved post',
+			plural: 'saved posts',
+			perform: () => saved.clear(),
+			undo: () => {
+				for (const entry of snapshot) saved.save(entry.id, entry);
 			}
 		});
 	}
@@ -59,10 +57,7 @@
 </TopAppBar>
 
 {#if entries.length === 0}
-	<div class="empty">
-		<div class="empty-title">No saved posts</div>
-		<div class="empty-sub">Tap the bookmark icon on any post to save it here for later.</div>
-	</div>
+	<EmptyState title="No saved posts" body="Tap the bookmark icon on any post to save it here for later." />
 {:else}
 	<ul class="list">
 		{#each entries as entry (entry.id)}
@@ -98,7 +93,7 @@
 	.clear {
 		padding: 6px 12px;
 		font: inherit;
-		font-size: 13px;
+		font-size: var(--type-secondary);
 		color: var(--md-sys-color-error);
 		background: transparent;
 		border: 1px solid var(--md-sys-color-outline-variant);
@@ -155,8 +150,8 @@
 		color: inherit;
 	}
 	.title {
-		font-size: 14px;
-		font-weight: 500;
+		font-size: var(--type-body);
+		font-weight: var(--weight-title);
 		line-height: 1.3;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
@@ -166,7 +161,7 @@
 		color: var(--md-sys-color-on-surface);
 	}
 	.meta {
-		font-size: 12px;
+		font-size: var(--type-meta);
 		color: var(--md-sys-color-on-surface-variant);
 		display: flex;
 		gap: 6px;
@@ -188,19 +183,5 @@
 	}
 	.unsave:active {
 		background: var(--md-sys-color-surface-container-high);
-	}
-	.empty {
-		padding: 48px 24px;
-		text-align: center;
-		color: var(--md-sys-color-on-surface-variant);
-	}
-	.empty-title {
-		font-size: 15px;
-		font-weight: 500;
-		color: var(--md-sys-color-on-surface);
-		margin-bottom: 4px;
-	}
-	.empty-sub {
-		font-size: 13px;
 	}
 </style>

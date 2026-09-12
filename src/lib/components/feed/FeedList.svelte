@@ -261,7 +261,7 @@
 		padding: 16px;
 		text-align: center;
 		color: var(--md-sys-color-on-surface-variant);
-		font-size: 13px;
+		font-size: var(--type-secondary);
 	}
 	.end {
 		padding: 20px 16px 28px;
@@ -280,8 +280,8 @@
 		background: var(--md-sys-color-secondary-container);
 		color: var(--md-sys-color-on-secondary-container);
 		font: inherit;
-		font-size: 13px;
-		font-weight: 500;
+		font-size: var(--type-secondary);
+		font-weight: var(--weight-title);
 	}
 	.empty {
 		padding: 48px 16px;
@@ -293,12 +293,12 @@
 		gap: 6px;
 	}
 	.caught-title {
-		font-size: 15px;
-		font-weight: 600;
+		font-size: var(--type-body-lg);
+		font-weight: var(--weight-heading);
 		color: var(--md-sys-color-on-surface);
 	}
 	.caught-sub {
-		font-size: 13px;
+		font-size: var(--type-secondary);
 	}
 	.reveal {
 		margin-top: 10px;
@@ -307,8 +307,8 @@
 		background: var(--md-sys-color-secondary-container);
 		color: var(--md-sys-color-on-secondary-container);
 		font: inherit;
-		font-size: 13px;
-		font-weight: 500;
+		font-size: var(--type-secondary);
+		font-weight: var(--weight-title);
 	}
 	.sentinel {
 		height: 1px;
@@ -322,6 +322,6 @@
 		border-radius: 8px;
 		background: var(--md-sys-color-surface-container-high);
 		color: var(--md-sys-color-on-surface-variant);
-		font-size: 12px;
+		font-size: var(--type-meta);
 	}
 </style>

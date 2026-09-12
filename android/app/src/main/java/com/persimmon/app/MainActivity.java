@@ -28,6 +28,9 @@ public class MainActivity extends BridgeActivity {
         // Custom plugin that fetches Reddit JSON through a real WebView — Reddit
         // now blocks the native okhttp client. Must register before super.
         registerPlugin(RedditFetchPlugin.class);
+        // Hands a downloaded release APK to the system package installer so the
+        // in-app updater doesn't have to detour through a browser.
+        registerPlugin(ApkInstallerPlugin.class);
         // Rewrite before super reads the intent for the cold-start launch URL.
         convertSendToView(getIntent());
         super.onCreate(savedInstanceState);

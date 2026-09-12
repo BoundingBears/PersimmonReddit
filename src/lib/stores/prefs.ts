@@ -37,6 +37,7 @@ export interface Prefs {
 	dismissedUpdateVersion: string; // release the user dismissed the update banner for
 	lastKnownUpdateVersion: string; // newest release tag a check found newer than this build
 	lastKnownUpdateUrl: string; // release page for lastKnownUpdateVersion
+	lastKnownUpdateApkUrl: string; // direct .apk asset for the in-app installer
 	autoBackup: boolean; // silently write a backup to Documents when the app is backgrounded
 }
 
@@ -64,6 +65,7 @@ export const DEFAULT_PREFS: Prefs = {
 	dismissedUpdateVersion: '',
 	lastKnownUpdateVersion: '',
 	lastKnownUpdateUrl: '',
+	lastKnownUpdateApkUrl: '',
 	autoBackup: true
 };
 

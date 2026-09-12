@@ -528,7 +528,7 @@
 	}
 	.time {
 		flex: none;
-		font-size: 12px;
+		font-size: var(--type-meta);
 		font-variant-numeric: tabular-nums;
 		color: #fff;
 	}

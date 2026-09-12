@@ -56,15 +56,16 @@
 			haptic();
 			pushToast('Saved', {
 				duration: 5000,
-				action: { label: 'UNDO', onClick: () => saved.unsave(id) }
+				action: { label: 'Undo', onClick: () => saved.unsave(id) }
 			});
 		}
 	}
 </script>
 
-<article
+<div
 	class="card"
 	data-post-id={post.id}
+	role="button"
 	onclick={open}
 	onkeydown={(e) => e.key === 'Enter' && open()}
 	tabindex="0"
@@ -143,7 +144,7 @@
 			<Icon name="share" size={18} />
 		</button>
 	</footer>
-</article>
+</div>
 
 <style>
 	.card {
@@ -162,7 +163,7 @@
 		display: flex;
 		align-items: center;
 		gap: 6px;
-		font-size: 12px;
+		font-size: var(--type-meta);
 		color: var(--md-sys-color-on-surface-variant);
 		flex-wrap: wrap;
 	}
@@ -171,8 +172,8 @@
 	}
 	.title {
 		margin: 0;
-		font-size: calc(16px * var(--font-scale));
-		font-weight: 500;
+		font-size: calc(var(--type-title) * var(--font-scale));
+		font-weight: var(--weight-title);
 		line-height: 1.3;
 	}
 	.title.visited {
@@ -187,8 +188,8 @@
 		display: inline-block;
 		padding: 2px 8px;
 		border-radius: 12px;
-		font-size: 11px;
-		font-weight: 500;
+		font-size: var(--type-caption);
+		font-weight: var(--weight-title);
 		background: var(--md-sys-color-surface-container-high);
 		color: var(--md-sys-color-on-surface-variant);
 	}
@@ -228,8 +229,8 @@
 		border-radius: 24px;
 		background: var(--md-sys-color-primary);
 		color: var(--md-sys-color-on-primary);
-		font-weight: 500;
-		font-size: 13px;
+		font-weight: var(--weight-title);
+		font-size: var(--type-secondary);
 		z-index: 2;
 	}
 	.play {
@@ -252,11 +253,11 @@
 		background: rgba(0, 0, 0, 0.6);
 		color: #fff;
 		border-radius: 12px;
-		font-size: 12px;
+		font-size: var(--type-meta);
 	}
 	.selftext {
 		margin: 0;
-		font-size: calc(13px * var(--font-scale));
+		font-size: calc(var(--type-secondary) * var(--font-scale));
 		color: var(--md-sys-color-on-surface-variant);
 		white-space: pre-wrap;
 		max-height: 8em;
@@ -270,7 +271,7 @@
 		border-radius: 8px;
 		background: var(--md-sys-color-surface-container-low);
 		color: var(--md-sys-color-on-surface-variant);
-		font-size: 12px;
+		font-size: var(--type-meta);
 		max-width: fit-content;
 	}
 	.actions {
@@ -278,7 +279,7 @@
 		align-items: center;
 		gap: 16px;
 		color: var(--md-sys-color-on-surface-variant);
-		font-size: 13px;
+		font-size: var(--type-secondary);
 	}
 	.action {
 		display: inline-flex;

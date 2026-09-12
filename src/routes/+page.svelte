@@ -1,4 +1,6 @@
 <script lang="ts">
+	import ErrorState from '$lib/components/shared/ErrorState.svelte';
+	import EmptyState from '$lib/components/shared/EmptyState.svelte';
 	import { onDestroy, onMount, untrack } from 'svelte';
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import TopAppBar from '$lib/components/chrome/TopAppBar.svelte';
@@ -8,7 +10,7 @@
 	import { getSubmissions, getMergedSubmissions } from '$lib/reddit/endpoints';
 	import { clearCache } from '$lib/reddit/client';
 	import { prefs, type HomeView } from '$lib/stores/prefs';
-	import { subscribed } from '$lib/stores/subscribed';
+	import { subscribed, subscribedReady } from '$lib/stores/subscribed';
 	import { getFeedSnapshot, saveFeedSnapshot } from '$lib/stores/feedSnapshot';
 	import { captureScrollAnchor, restoreScrollAnchor } from '$lib/utils/scrollRestore';
 	import type { Listing, Post, Sort } from '$lib/reddit/types';
@@ -39,7 +41,12 @@
 	];
 
 	onMount(async () => {
-		await prefs.ready;
+		// Both stores, not just prefs: in 'subscribed' mode `subsKey` reads
+		// $subscribed, and a first effect run before that store hydrates would
+		// consume the one-shot `restored` flag — the run after hydration then
+		// refetches, reshuffles the merged feed, and the scroll anchor we saved
+		// no longer exists anywhere in the list.
+		await Promise.all([prefs.ready, subscribedReady]);
 		prefsReady = true;
 	});
 
@@ -211,18 +218,16 @@
 </TopAppBar>
 
 {#if error}
-	<div class="error">
-		Couldn't reach Reddit ({error}).
-		<button onclick={() => load(true)}>Retry</button>
-	</div>
+	<ErrorState message="Couldn't reach Reddit ({error})." onRetry={() => load(true)} />
 {/if}
 
 {#if $prefs.homeView === 'subscribed' && $subscribed.length === 0}
-	<div class="empty">
-		<p>You haven't subscribed to anything yet.</p>
-		<p>Bookmark subreddits from the Subs tab or any subreddit page; they'll show up here.</p>
-		<a class="cta" href="/subreddits">Discover subreddits</a>
-	</div>
+	<EmptyState
+		title="You haven't subscribed to anything yet"
+		body="Bookmark subreddits from the Subs tab or any subreddit page; they'll show up here."
+		actionLabel="Discover subreddits"
+		actionHref="/subreddits"
+	/>
 {:else}
 	<FeedList
 		{posts}
@@ -249,35 +254,5 @@
 	}
 	.iconbtn:active {
 		background: var(--md-sys-color-surface-container-highest);
-	}
-	.empty {
-		padding: 48px 24px;
-		text-align: center;
-		color: var(--md-sys-color-on-surface-variant);
-	}
-	.empty p {
-		margin: 0 0 12px;
-	}
-	.cta {
-		display: inline-block;
-		margin-top: 12px;
-		padding: 10px 20px;
-		background: var(--md-sys-color-primary);
-		color: var(--md-sys-color-on-primary);
-		border-radius: 24px;
-		font-weight: 500;
-	}
-	.error {
-		padding: 12px 16px;
-		background: var(--md-sys-color-error);
-		color: var(--md-sys-color-on-error);
-	}
-	.error button {
-		margin-left: 8px;
-		background: var(--md-sys-color-on-error);
-		color: var(--md-sys-color-error);
-		padding: 4px 10px;
-		border-radius: 4px;
-		font-weight: 500;
 	}
 </style>

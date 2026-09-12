@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ErrorState from '$lib/components/shared/ErrorState.svelte';
 	import { onDestroy, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -75,7 +76,11 @@
 		if (idx === -1) return;
 		const targetIdx = direction === 'prev' ? idx - 1 : idx + 1;
 		const targetId = ctx.feedItemIds[targetIdx];
-		if (targetId) goto(`/comments/${targetId}`);
+		// replaceState, NOT a push: swiping between posts is moving *within* one
+		// "reading a post" step, not descending deeper. With a push, swiping
+		// through five posts stacked five history entries and the back button
+		// walked them one at a time instead of returning to the feed.
+		if (targetId) goto(`/comments/${targetId}`, { replaceState: true });
 	}
 
 	let pullDistance = $state(0);
@@ -103,9 +108,7 @@
 </TopAppBar>
 
 {#if error}
-	<div class="error">
-		{error} <button onclick={load}>Retry</button>
-	</div>
+	<ErrorState message={error} onRetry={load} />
 {/if}
 
 <div
@@ -135,31 +138,19 @@
 		overscroll-behavior-y: contain;
 		touch-action: pan-y;
 	}
-	.error {
-		padding: 12px 16px;
-		background: var(--md-sys-color-error);
-		color: var(--md-sys-color-on-error);
-	}
-	.error button {
-		margin-left: 8px;
-		background: var(--md-sys-color-on-error);
-		color: var(--md-sys-color-error);
-		padding: 4px 10px;
-		border-radius: 4px;
-	}
 	.blocked {
 		padding: 48px 24px;
 		text-align: center;
 		color: var(--md-sys-color-on-surface-variant);
 	}
 	.blocked-title {
-		font-size: 16px;
-		font-weight: 500;
+		font-size: var(--type-title);
+		font-weight: var(--weight-title);
 		color: var(--md-sys-color-on-surface);
 		margin-bottom: 6px;
 	}
 	.blocked-sub {
-		font-size: 13px;
+		font-size: var(--type-secondary);
 		line-height: 1.5;
 	}
 </style>

@@ -106,7 +106,7 @@
 		gap: 2px;
 		padding: 8px 0 10px;
 		color: var(--md-sys-color-on-surface-variant);
-		font-size: 11px;
+		font-size: var(--type-caption);
 	}
 	.tab.active {
 		color: var(--md-sys-color-primary);
@@ -115,6 +115,6 @@
 		background: var(--md-sys-color-surface-container-highest);
 	}
 	.label {
-		font-weight: 500;
+		font-weight: var(--weight-title);
 	}
 </style>

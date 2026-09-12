@@ -10,6 +10,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.3.3',
+		title: 'One-tap updates, a tidier Settings & back-button fixes',
+		items: [
+			'⬇️ One-tap updates — Persimmon downloads the new version and opens Android’s installer itself. The update banner no longer hides under the status bar.',
+			'⚙️ Settings rebuilt — six clear sections, real Material switches, and every “clear” offers Undo instead of asking first.',
+			'↩️ Swiping between posts no longer piles up history, so back always returns to the feed; diagonal flicks no longer count as swipes.'
+		]
+	},
+	{
 		version: '1.3.2',
 		title: 'Back button keeps your place',
 		items: [

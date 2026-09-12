@@ -114,7 +114,7 @@
 		border: 1px solid var(--md-sys-color-outline-variant);
 		border-radius: 8px;
 		font: inherit;
-		font-size: 14px;
+		font-size: var(--type-body);
 		cursor: pointer;
 	}
 	.trigger:active {
@@ -154,7 +154,7 @@
 		border: 0;
 		border-radius: 6px;
 		font: inherit;
-		font-size: 14px;
+		font-size: var(--type-body);
 		text-align: left;
 		cursor: pointer;
 		text-transform: lowercase;
@@ -165,6 +165,6 @@
 	.option.active {
 		background: var(--md-sys-color-secondary-container);
 		color: var(--md-sys-color-on-secondary-container);
-		font-weight: 500;
+		font-weight: var(--weight-title);
 	}
 </style>

@@ -182,7 +182,7 @@
 
 <style>
 	.md {
-		font-size: calc(14px * var(--font-scale));
+		font-size: calc(var(--type-body) * var(--font-scale));
 		line-height: 1.5;
 		color: var(--md-sys-color-on-surface);
 		word-break: break-word;

@@ -117,7 +117,7 @@
 		border-radius: 12px;
 		background: rgba(0, 0, 0, 0.5);
 		color: #fff;
-		font-size: 12px;
+		font-size: var(--type-meta);
 		z-index: 2;
 		pointer-events: none;
 	}
@@ -129,7 +129,7 @@
 		padding: 8px 12px;
 		background: rgba(0, 0, 0, 0.5);
 		color: #fff;
-		font-size: 13px;
+		font-size: var(--type-secondary);
 		z-index: 2;
 		pointer-events: none;
 	}
@@ -142,7 +142,7 @@
 		border-radius: 24px;
 		background: var(--md-sys-color-primary);
 		color: var(--md-sys-color-on-primary);
-		font-weight: 500;
+		font-weight: var(--weight-title);
 		z-index: 2;
 	}
 </style>

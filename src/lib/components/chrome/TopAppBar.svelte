@@ -1,4 +1,5 @@
 <script lang="ts">
+	import UpdateBanner from '$lib/components/shared/UpdateBanner.svelte';
 	import Icon from '$lib/components/shared/Icon.svelte';
 	import { openDrawer } from '$lib/stores/drawer';
 
@@ -29,6 +30,15 @@
 	}
 </script>
 
+<!-- The update banner lives inside the app bar's sticky wrapper, not above it in
+     the layout. It used to be the first child of <main>, which put it ABOVE the
+     app bar with nothing owning the status-bar inset: under Android's enforced
+     edge-to-edge (targetSdk 36) the WebView draws behind the status bar, the app
+     bar compensates with env(safe-area-inset-top), and the banner — sitting
+     above it — rendered underneath the clock and battery where taps go to the
+     system, not to us. Sticking it to the app bar means exactly one element
+     carries the inset and the banner is always on screen and always tappable. -->
+<div class="bar-wrap">
 <header class="bar">
 	<button class="leading" onclick={handleLeading} aria-label={showBack ? 'Back' : 'Menu'}>
 		<Icon name={showBack ? 'arrow_back' : 'menu'} size={24} />
@@ -50,12 +60,17 @@
 		{#if actions}{@render actions()}{/if}
 	</div>
 </header>
+	<UpdateBanner />
+</div>
 
 <style>
-	.bar {
+	.bar-wrap {
 		position: sticky;
 		top: 0;
 		z-index: 10;
+		background: var(--md-sys-color-surface);
+	}
+	.bar {
 		display: flex;
 		align-items: center;
 		gap: 8px;
@@ -84,16 +99,16 @@
 		justify-content: center;
 	}
 	.title {
-		font-size: 18px;
-		font-weight: 500;
+		font-size: var(--type-headline);
+		font-weight: var(--weight-title);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		color: inherit;
 	}
 	.title.dense {
-		font-size: 15px;
-		font-weight: 500;
+		font-size: var(--type-body-lg);
+		font-weight: var(--weight-title);
 		color: var(--md-sys-color-on-surface-variant);
 	}
 	.title.link {
@@ -120,7 +135,7 @@
 		background: var(--md-sys-color-surface-container-highest);
 	}
 	.subtitle {
-		font-size: 12px;
+		font-size: var(--type-meta);
 		color: var(--md-sys-color-on-surface-variant);
 	}
 	.actions {

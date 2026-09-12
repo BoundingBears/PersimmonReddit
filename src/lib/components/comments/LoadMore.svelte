@@ -73,9 +73,9 @@
 		width: 100%;
 		padding: 8px 12px;
 		text-align: left;
-		font-size: 13px;
+		font-size: var(--type-secondary);
 		color: var(--md-sys-color-primary);
-		font-weight: 500;
+		font-weight: var(--weight-title);
 	}
 	.more:active {
 		background: var(--md-sys-color-surface-container);

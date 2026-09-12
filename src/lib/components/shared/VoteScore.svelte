@@ -21,7 +21,7 @@
 		align-items: center;
 		gap: 4px;
 		color: var(--md-sys-color-on-surface-variant);
-		font-weight: 500;
-		font-size: 13px;
+		font-weight: var(--weight-title);
+		font-size: var(--type-secondary);
 	}
 </style>

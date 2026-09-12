@@ -5,6 +5,7 @@
 	import TopAppBar from '$lib/components/chrome/TopAppBar.svelte';
 	import Icon from '$lib/components/shared/Icon.svelte';
 	import Dropdown from '$lib/components/shared/Dropdown.svelte';
+	import Switch from '$lib/components/shared/Switch.svelte';
 	import { prefs, type Layout, type ThemeName } from '$lib/stores/prefs';
 	import { hidden } from '$lib/stores/hidden';
 	import { subscribed } from '$lib/stores/subscribed';
@@ -14,7 +15,9 @@
 	import { feedCache } from '$lib/stores/feedCache';
 	import { filters, type FilterKind } from '$lib/stores/filters';
 	import { openWhatsNew } from '$lib/stores/whatsNew';
-	import { checkForUpdates } from '$lib/stores/updateCheck';
+	import { checkForUpdates, updateAvailable } from '$lib/stores/updateCheck';
+	import { installState, startUpdate } from '$lib/stores/updateInstall';
+	import { get } from 'svelte/store';
 	import { clearCache } from '$lib/reddit/client';
 	import {
 		serializeBackup,
@@ -27,6 +30,7 @@
 	} from '$lib/utils/backup';
 	import { writeAutoBackup } from '$lib/utils/autoBackup';
 	import { pushToast } from '$lib/stores/toast';
+	import { undoable, undoableClear } from '$lib/utils/undoable';
 	import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 	import { Share } from '@capacitor/share';
 
@@ -37,6 +41,11 @@
 	const APP_VERSION = __APP_VERSION__;
 
 	let checkingUpdate = $state(false);
+	// A found update also lands in the persistent row below, so the toast here is
+	// just immediate feedback on the tap.
+	let updateBusy = $derived(
+		$installState?.stage === 'downloading' || $installState?.stage === 'installing'
+	);
 	async function checkUpdates() {
 		checkingUpdate = true;
 		// replace:true so a re-tap replaces any lingering result toast with this
@@ -45,7 +54,7 @@
 		const r = await checkForUpdates({ force: true });
 		pushToast(
 			r === 'available'
-				? 'A new version is available'
+				? `Persimmon v${get(updateAvailable)?.version ?? ''} is available`
 				: r === 'up-to-date'
 					? "You're on the latest version"
 					: "Couldn't reach GitHub to check",
@@ -145,6 +154,75 @@
 		pendingSummary = null;
 	}
 
+	// ---- Clearing stored data ----
+	// Every clear that destroys something the user built offers Undo (see
+	// undoable.ts). Caches are the exception: nothing is lost, so they just go.
+	const caches: Array<{ label: string; hint: string; count: () => string; clear: () => void }> = [
+		{
+			label: 'Cached feeds',
+			hint: 'Last-known posts shown when Reddit is unreachable',
+			count: () => String($feedCache.size),
+			clear: () => {
+				feedCache.clear();
+				pushToast('Cleared cached feeds');
+			}
+		},
+		{
+			label: 'Sort memory',
+			hint: 'Per-subreddit sort choices',
+			count: () => String($subSort.size),
+			clear: () => {
+				const snapshot = [...$subSort.entries()];
+				undoableClear({
+					count: snapshot.length,
+					singular: 'remembered sort',
+					plural: 'remembered sorts',
+					perform: () => subSort.clear(),
+					undo: () => subSort.hydrate(snapshot, 'replace')
+				});
+			}
+		},
+		{
+			label: 'In-memory cache',
+			hint: 'This session\u2019s fetched pages',
+			count: () => '',
+			clear: () => {
+				clearCache();
+				pushToast('Cleared in-memory cache');
+			}
+		}
+	];
+
+	function clearSubscribed() {
+		const snapshot = [...$subscribed];
+		undoableClear({
+			count: snapshot.length,
+			singular: 'subscribed sub',
+			plural: 'subscribed subs',
+			perform: () => subscribed.clear(),
+			undo: () => subscribed.hydrate(snapshot, 'replace')
+		});
+	}
+
+	function clearReadHistory() {
+		const snapshot = [...$readPosts.entries()];
+		undoableClear({
+			count: snapshot.length,
+			singular: 'read post',
+			plural: 'read posts',
+			perform: () => readPosts.clear(),
+			undo: () => readPosts.hydrate(snapshot, 'replace')
+		});
+	}
+
+	function resetPreferences() {
+		const snapshot = { ...get(prefs) };
+		undoable({
+			message: 'Preferences reset to defaults',
+			perform: () => prefs.reset(),
+			undo: () => prefs.set(snapshot)
+		});
+	}
 </script>
 
 <TopAppBar title="Settings" />
@@ -154,12 +232,12 @@
 		<h2>Appearance</h2>
 
 		<div class="row">
-			<span>Theme</span>
+			<span class="label"><span class="title">Theme</span></span>
 			<Dropdown bind:value={$prefs.theme} options={themes} label="Theme" align="right" />
 		</div>
 
 		<div class="row">
-			<span>Accent</span>
+			<span class="label"><span class="title">Accent</span></span>
 			<div class="accents">
 				{#each accents as c}
 					<button
@@ -175,77 +253,78 @@
 		</div>
 
 		<div class="row">
-			<span>Default post layout</span>
+			<span class="label">
+				<span class="title">Post layout</span>
+				<span class="sub">How posts are shown in feeds</span>
+			</span>
 			<Dropdown bind:value={$prefs.layout} options={layouts} label="Layout" align="right" />
 		</div>
 
 		<label class="row">
-			<span>Text size</span>
-			<input type="range" min="0.8" max="1.5" step="0.1" bind:value={$prefs.fontScale} />
-			<span class="value">{Math.round($prefs.fontScale * 100)}%</span>
+			<span class="label">
+				<span class="title">Text size</span>
+				<span class="sub" style:font-size="calc(var(--type-meta) * var(--font-scale))">
+					Post titles and comments scale to this size.
+				</span>
+			</span>
+			<span class="slider">
+				<input type="range" min="0.8" max="1.5" step="0.1" bind:value={$prefs.fontScale} />
+				<span class="value">{Math.round($prefs.fontScale * 100)}%</span>
+			</span>
 		</label>
-		<div class="row note" style:font-size="calc(14px * var(--font-scale))">
-			<span>Preview: post titles and comments scale to this size.</span>
-		</div>
 	</section>
 
 	<section>
-		<h2>Content</h2>
+		<h2>Feed</h2>
 		{#if !IS_IOS}
-			<label class="row toggle">
-				<span>Show NSFW posts</span>
-				<input type="checkbox" bind:checked={$prefs.showNsfw} />
+			<label class="row">
+				<span class="label"><span class="title">Show NSFW posts</span></span>
+				<Switch bind:checked={$prefs.showNsfw} />
 			</label>
-			<label class="row toggle">
-				<span>Blur NSFW media</span>
-				<input type="checkbox" bind:checked={$prefs.blurNsfw} />
+			<label class="row">
+				<span class="label">
+					<span class="title">Blur NSFW media</span>
+					<span class="sub">Tap to reveal instead of showing it outright</span>
+				</span>
+				<Switch bind:checked={$prefs.blurNsfw} />
 			</label>
 		{:else}
-			<div class="row note">
-				<span>NSFW posts are hidden on iOS</span>
-			</div>
+			<div class="row note"><span>NSFW posts are hidden on iOS.</span></div>
 		{/if}
-		<label class="row toggle">
-			<span>Autoplay videos</span>
-			<input type="checkbox" bind:checked={$prefs.autoplayVideos} />
-		</label>
-		<label class="row toggle">
-			<span>Grey out posts you've opened</span>
-			<input type="checkbox" bind:checked={$prefs.markPostsRead} />
-		</label>
-		<label class="row toggle" class:disabled={!$prefs.markPostsRead}>
-			<span>Hide opened posts from feeds</span>
-			<input type="checkbox" bind:checked={$prefs.hideReadPosts} disabled={!$prefs.markPostsRead} />
-		</label>
-	</section>
-
-	<section>
-		<h2>Feedback</h2>
-		<label class="row toggle">
-			<span>Haptic feedback</span>
-			<input type="checkbox" bind:checked={$prefs.haptics} />
-		</label>
-	</section>
-
-	<section>
-		<h2>Lazy mode</h2>
-		<label class="row toggle">
-			<span>Enable auto-scrolling feed</span>
-			<input type="checkbox" bind:checked={$prefs.lazyMode} />
+		<label class="row">
+			<span class="label"><span class="title">Autoplay videos</span></span>
+			<Switch bind:checked={$prefs.autoplayVideos} />
 		</label>
 		<label class="row">
-			<span>Speed (px/sec)</span>
-			<input type="range" min="20" max="200" step="10" bind:value={$prefs.lazyModePxPerSec} />
-			<span class="value">{$prefs.lazyModePxPerSec}</span>
+			<span class="label">
+				<span class="title">Grey out opened posts</span>
+				<span class="sub">Dim the title of anything you've already read</span>
+			</span>
+			<Switch bind:checked={$prefs.markPostsRead} />
 		</label>
-	</section>
-
-	<section>
-		<h2>Links</h2>
-		<label class="row toggle">
-			<span>Open external links in in-app browser</span>
-			<input type="checkbox" bind:checked={$prefs.openLinksInBrowser} />
+		<label class="row indent" class:disabled={!$prefs.markPostsRead}>
+			<span class="label">
+				<span class="title">Hide them from feeds</span>
+				<span class="sub">Drop opened posts entirely instead of dimming them</span>
+			</span>
+			<Switch bind:checked={$prefs.hideReadPosts} disabled={!$prefs.markPostsRead} />
 		</label>
+		<label class="row">
+			<span class="label">
+				<span class="title">Auto-scrolling feed</span>
+				<span class="sub">Scrolls the feed for you, hands-free</span>
+			</span>
+			<Switch bind:checked={$prefs.lazyMode} />
+		</label>
+		{#if $prefs.lazyMode}
+			<label class="row indent">
+				<span class="label"><span class="title">Scroll speed</span></span>
+				<span class="slider">
+					<input type="range" min="20" max="200" step="10" bind:value={$prefs.lazyModePxPerSec} />
+					<span class="value">{$prefs.lazyModePxPerSec}/s</span>
+				</span>
+			</label>
+		{/if}
 	</section>
 
 	<section>
@@ -275,50 +354,65 @@
 	</section>
 
 	<section>
-		<h2>Storage</h2>
-		<a class="action" href="/saved">
-			<Icon name="bookmark" size={18} />
-			<span>Saved posts</span>
-			<span class="action-meta">{$saved.size}</span>
-		</a>
-		<a class="action" href="/hidden">
-			<Icon name="visibility_off" size={18} />
-			<span>Hidden posts</span>
-			<span class="action-meta">{$hidden.size}</span>
-		</a>
-		<button class="action" onclick={() => subscribed.clear()}>Clear subscribed ({$subscribed.length})</button>
-		<button class="action" onclick={() => readPosts.clear()}>Clear read history ({$readPosts.size})</button>
-		<button class="action" onclick={() => subSort.clear()}>Clear sort memory ({$subSort.size})</button>
-		<button class="action" onclick={() => feedCache.clear()}>Clear cached feeds ({$feedCache.size})</button>
-		<button class="action" onclick={() => clearCache()}>Clear in-memory cache</button>
-		<button class="action danger" onclick={() => prefs.reset()}>Reset all preferences</button>
+		<h2>Behaviour</h2>
+		<label class="row">
+			<span class="label"><span class="title">Haptic feedback</span></span>
+			<Switch bind:checked={$prefs.haptics} />
+		</label>
+		<label class="row">
+			<span class="label">
+				<span class="title">Open links in-app</span>
+				<span class="sub">Off sends external links to your browser</span>
+			</span>
+			<Switch bind:checked={$prefs.openLinksInBrowser} />
+		</label>
+		<label class="row">
+			<span class="label">
+				<span class="title">Retry when Reddit blocks us</span>
+				<span class="sub">Tries alternate identities before giving up on a request</span>
+			</span>
+			<Switch bind:checked={$prefs.uaEscalationEnabled} />
+		</label>
 	</section>
 
 	<section>
-		<h2>Backup</h2>
+		<h2>Your data</h2>
+		<a class="nav" href="/saved">
+			<Icon name="bookmark" size={20} />
+			<span class="label"><span class="title">Saved posts</span></span>
+			<span class="meta">{$saved.size}</span>
+			<Icon name="chevron_right" size={20} />
+		</a>
+		<a class="nav" href="/hidden">
+			<Icon name="visibility_off" size={20} />
+			<span class="label"><span class="title">Hidden posts</span></span>
+			<span class="meta">{$hidden.size}</span>
+			<Icon name="chevron_right" size={20} />
+		</a>
+
+		<div class="subhead">Backup</div>
 		<div class="row note">
 			<span>Save your subs, saved &amp; hidden posts, filters, and settings to a file — then restore them on a new device or after reinstalling.</span>
 		</div>
 		{#if IS_NATIVE}
-			<label class="row toggle">
-				<span>Auto-backup to Documents</span>
-				<input type="checkbox" bind:checked={$prefs.autoBackup} onchange={onAutoBackupToggle} />
+			<label class="row">
+				<span class="label">
+					<span class="title">Auto-backup</span>
+					<span class="sub">
+						Keeps a current backup in <strong>Documents/Persimmon/</strong> that survives
+						uninstalling. Written each time you leave the app.
+					</span>
+				</span>
+				<Switch bind:checked={$prefs.autoBackup} onchange={onAutoBackupToggle} />
 			</label>
-			<div class="row note">
-				<span
-					>Keeps a current backup at <strong>Documents/Persimmon/</strong> that survives
-					uninstalling the app. Written each time you leave Persimmon. Restore it with Import
-					below.</span
-				>
-			</div>
 		{/if}
-		<button class="action" onclick={doExport}>
-			<Icon name="download" size={18} />
-			<span>Export backup</span>
+		<button class="nav" onclick={doExport}>
+			<Icon name="download" size={20} />
+			<span class="label"><span class="title">Export backup</span></span>
 		</button>
-		<button class="action" onclick={() => fileInput?.click()}>
-			<Icon name="upload" size={18} />
-			<span>Import backup</span>
+		<button class="nav" onclick={() => fileInput?.click()}>
+			<Icon name="upload" size={20} />
+			<span class="label"><span class="title">Import backup</span></span>
 		</button>
 		<input
 			bind:this={fileInput}
@@ -347,14 +441,41 @@
 				</div>
 			</div>
 		{/if}
-	</section>
 
-	<section>
-		<h2>Connection</h2>
-		<label class="row toggle">
-			<span>Try alternate identities when Reddit blocks us</span>
-			<input type="checkbox" bind:checked={$prefs.uaEscalationEnabled} />
-		</label>
+		<div class="subhead">Clear</div>
+		<button
+			class="nav"
+			onclick={clearSubscribed}
+		>
+			<span class="label">
+				<span class="title">Subscribed subs</span>
+				<span class="sub">Your bookmarked subreddits</span>
+			</span>
+			<span class="meta">{$subscribed.length}</span>
+		</button>
+		<button
+			class="nav"
+			onclick={clearReadHistory}
+		>
+			<span class="label">
+				<span class="title">Read history</span>
+				<span class="sub">Which posts count as opened</span>
+			</span>
+			<span class="meta">{$readPosts.size}</span>
+		</button>
+		{#each caches as c (c.label)}
+			<button class="nav" onclick={c.clear}>
+				<span class="label">
+					<span class="title">{c.label}</span>
+					<span class="sub">{c.hint}</span>
+				</span>
+				<span class="meta">{c.count()}</span>
+			</button>
+		{/each}
+		<button class="nav danger" onclick={resetPreferences}>
+			<Icon name="warning" size={20} />
+			<span class="label"><span class="title">Reset all preferences</span></span>
+		</button>
 	</section>
 
 	<section>
@@ -365,22 +486,47 @@
 				<div class="brand-sub">Read-only Reddit client · v{APP_VERSION}</div>
 			</div>
 		</div>
-		<button class="action" onclick={() => openExternal(KOFI_URL)}>
-			<Icon name="favorite" size={18} filled />
-			<span>Support my work on Ko-fi</span>
-			<span class="action-meta">@boundingbears</span>
+		{#if $updateAvailable}
+			<!-- A found update stays on screen as its own row rather than only
+			     flashing past in a toast, so it's still actionable later. -->
+			<button class="nav update-row" onclick={() => startUpdate()} disabled={updateBusy}>
+				<Icon name="system_update" size={20} filled />
+				<span class="label">
+					<span class="title">
+						{updateBusy ? `Downloading v${$updateAvailable.version}…` : `Update to v${$updateAvailable.version}`}
+					</span>
+					<span class="sub">
+						{$installState?.stage === 'installing'
+							? 'Opening the installer…'
+							: 'Downloads and installs from GitHub'}
+					</span>
+				</span>
+				<span class="meta">
+					{$installState?.stage === 'downloading'
+						? `${$installState.percent}%`
+						: $installState?.stage === 'installing'
+							? 'Opening…'
+							: 'Install'}
+				</span>
+			</button>
+		{/if}
+		<button class="nav" onclick={checkUpdates} disabled={checkingUpdate || updateBusy}>
+			<Icon name="system_update" size={20} />
+			<span class="label"><span class="title">{checkingUpdate ? 'Checking…' : 'Check for updates'}</span></span>
+			<span class="meta">v{APP_VERSION}</span>
 		</button>
-		<button class="action" onclick={openWhatsNew}>
-			<Icon name="auto_awesome" size={18} />
-			<span>What's new</span>
+		<button class="nav" onclick={openWhatsNew}>
+			<Icon name="auto_awesome" size={20} />
+			<span class="label"><span class="title">What's new</span></span>
 		</button>
-		<button class="action" onclick={checkUpdates} disabled={checkingUpdate}>
-			<Icon name="system_update" size={18} />
-			<span>{checkingUpdate ? 'Checking…' : 'Check for updates'}</span>
+		<button class="nav" onclick={() => openExternal(KOFI_URL)}>
+			<Icon name="favorite" size={20} filled />
+			<span class="label"><span class="title">Support my work on Ko-fi</span></span>
+			<span class="meta">@boundingbears</span>
 		</button>
-		<button class="action" onclick={() => openExternal(GITHUB_URL)}>
-			<Icon name="code" size={18} />
-			<span>View source on GitHub</span>
+		<button class="nav" onclick={() => openExternal(GITHUB_URL)}>
+			<Icon name="code" size={20} />
+			<span class="label"><span class="title">View source on GitHub</span></span>
 		</button>
 		<div class="legal">
 			Built with SvelteKit + Capacitor · MIT License
@@ -394,48 +540,143 @@
 	.settings {
 		padding: 8px 0 24px;
 	}
+	/* Each section is one M3 surface card, so the page reads as a handful of
+	   groups rather than an undifferentiated wall of rows. */
 	section {
-		margin-bottom: 16px;
-		padding: 4px 0;
+		margin: 0 12px 12px;
+		padding: 4px 0 8px;
+		border-radius: 16px;
 		background: var(--md-sys-color-surface-container-low);
+		overflow: hidden;
 	}
 	h2 {
 		margin: 0;
-		padding: 12px 16px 6px;
-		font-size: 13px;
-		font-weight: 600;
+		padding: 14px 16px 8px;
+		font-size: var(--type-meta);
+		font-weight: var(--weight-heading);
 		text-transform: uppercase;
+		letter-spacing: 0.8px;
+		color: var(--md-sys-color-primary);
+	}
+	/* Divides a section into labelled runs (Backup / Clear) without spending a
+	   whole card on each. */
+	.subhead {
+		margin-top: 4px;
+		padding: 14px 16px 6px;
+		border-top: 1px solid var(--md-sys-color-outline-variant);
+		font-size: var(--type-meta);
+		font-weight: var(--weight-heading);
 		letter-spacing: 0.5px;
+		text-transform: uppercase;
 		color: var(--md-sys-color-on-surface-variant);
 	}
-	.row {
+
+	/* ---- Row anatomy ----
+	   Every row is: [optional icon] [label + sub] [trailing control/meta].
+	   `.row` carries a control, `.nav` is tappable and goes somewhere or does
+	   something. Both share the label block so text lines up down the page. */
+	.row,
+	.nav {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
-		gap: 12px;
-		padding: 10px 16px;
-		font-size: 14px;
+		gap: 14px;
+		width: 100%;
+		padding: 12px 16px;
+		font-size: var(--type-body);
+		text-align: left;
+		color: var(--md-sys-color-on-surface);
+		background: none;
+		font: inherit;
+		font-size: var(--type-body);
 	}
-	.row.toggle {
+	label.row {
 		cursor: pointer;
 	}
-	.row.toggle.disabled {
+	.nav:active {
+		background: var(--md-sys-color-surface-container);
+	}
+	.nav:disabled {
+		opacity: 0.6;
+	}
+	.label {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		flex: 1;
+		min-width: 0;
+	}
+	.title {
+		font-weight: var(--weight-title);
+		line-height: 1.3;
+	}
+	.sub {
+		font-size: var(--type-meta);
+		line-height: 1.4;
+		color: var(--md-sys-color-on-surface-variant);
+		font-weight: 400;
+	}
+	.meta {
+		flex: none;
+		font-size: var(--type-secondary);
+		color: var(--md-sys-color-on-surface-variant);
+		font-variant-numeric: tabular-nums;
+	}
+	/* A setting that only applies while its parent is on. */
+	.row.indent {
+		padding-left: 32px;
+	}
+	.row.indent .title {
+		font-weight: 400;
+	}
+	.row.disabled {
 		opacity: 0.5;
 	}
 	.row.note {
+		padding-top: 4px;
+		font-size: var(--type-secondary);
+		line-height: 1.5;
 		color: var(--md-sys-color-on-surface-variant);
-		font-style: italic;
-		font-size: 13px;
 	}
+	.nav.danger,
+	.nav.danger :global(.material-symbols-rounded) {
+		color: var(--md-sys-color-error);
+	}
+	/* A waiting update is the one row in Settings worth pulling the eye. */
+	.nav.update-row,
+	.nav.update-row .meta,
+	.nav.update-row :global(.material-symbols-rounded) {
+		color: var(--md-sys-color-primary);
+	}
+	.nav.update-row .meta {
+		font-weight: var(--weight-heading);
+	}
+	.nav :global(.material-symbols-rounded) {
+		flex: none;
+		color: var(--md-sys-color-on-surface-variant);
+	}
+
 	input[type='color'],
 	input[type='range'] {
 		font: inherit;
+	}
+	.slider {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex: none;
+		width: 150px;
+	}
+	.slider input[type='range'] {
+		flex: 1;
+		min-width: 0;
+		accent-color: var(--md-sys-color-primary);
 	}
 	.accents {
 		display: flex;
 		align-items: center;
 		gap: 8px;
 		flex-wrap: wrap;
+		justify-content: flex-end;
 	}
 	.swatch {
 		width: 28px;
@@ -454,39 +695,18 @@
 		padding: 0;
 	}
 	.value {
-		min-width: 36px;
+		min-width: 38px;
 		text-align: right;
+		font-size: var(--type-secondary);
 		color: var(--md-sys-color-on-surface-variant);
-	}
-	.action {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		width: calc(100% - 32px);
-		margin: 6px 16px;
-		padding: 10px 12px;
-		text-align: left;
-		background: var(--md-sys-color-surface-container);
-		border-radius: 8px;
-		color: var(--md-sys-color-on-surface);
-		font: inherit;
-		font-weight: 500;
-	}
-	.action:active {
-		background: var(--md-sys-color-surface-container-high);
-	}
-	.action.danger {
-		color: var(--md-sys-color-error);
-	}
-	.action:disabled {
-		opacity: 0.6;
+		font-variant-numeric: tabular-nums;
 	}
 	.filter-group {
 		padding: 8px 16px 12px;
 	}
 	.filter-label {
-		font-size: 13px;
-		font-weight: 500;
+		font-size: var(--type-secondary);
+		font-weight: var(--weight-title);
 		margin-bottom: 8px;
 		color: var(--md-sys-color-on-surface-variant);
 	}
@@ -503,7 +723,7 @@
 		padding: 4px 8px 4px 12px;
 		border-radius: 16px;
 		font: inherit;
-		font-size: 13px;
+		font-size: var(--type-secondary);
 		background: var(--md-sys-color-surface-container-high);
 		color: var(--md-sys-color-on-surface);
 	}
@@ -524,7 +744,7 @@
 		background: var(--md-sys-color-surface-container);
 		color: var(--md-sys-color-on-surface);
 		font: inherit;
-		font-size: 14px;
+		font-size: var(--type-body);
 	}
 	.add-btn {
 		flex: none;
@@ -547,12 +767,12 @@
 		background: var(--md-sys-color-surface-container-high);
 	}
 	.import-title {
-		font-size: 14px;
-		font-weight: 600;
+		font-size: var(--type-body);
+		font-weight: var(--weight-heading);
 		margin-bottom: 6px;
 	}
 	.import-meta {
-		font-size: 12px;
+		font-size: var(--type-meta);
 		color: var(--md-sys-color-on-surface-variant);
 		line-height: 1.5;
 	}
@@ -569,8 +789,8 @@
 		padding: 8px 14px;
 		border-radius: 8px;
 		font: inherit;
-		font-size: 13px;
-		font-weight: 500;
+		font-size: var(--type-secondary);
+		font-weight: var(--weight-title);
 	}
 	.imp.merge {
 		background: var(--md-sys-color-primary);
@@ -586,7 +806,7 @@
 	}
 	.import-hint {
 		margin-top: 10px;
-		font-size: 11px;
+		font-size: var(--type-caption);
 		line-height: 1.5;
 		color: var(--md-sys-color-on-surface-variant);
 	}
@@ -597,27 +817,17 @@
 		padding: 12px 16px 4px;
 	}
 	.brand-name {
-		font-size: 16px;
-		font-weight: 600;
+		font-size: var(--type-title);
+		font-weight: var(--weight-heading);
 		color: var(--md-sys-color-primary);
 	}
 	.brand-sub {
-		font-size: 12px;
+		font-size: var(--type-meta);
 		color: var(--md-sys-color-on-surface-variant);
-	}
-	.action :global(.material-symbols-rounded) {
-		margin-right: 4px;
-		flex: none;
-	}
-	.action-meta {
-		margin-left: auto;
-		font-size: 12px;
-		color: var(--md-sys-color-on-surface-variant);
-		font-weight: 400;
 	}
 	.legal {
 		padding: 12px 16px 16px;
-		font-size: 11px;
+		font-size: var(--type-caption);
 		color: var(--md-sys-color-on-surface-variant);
 		line-height: 1.5;
 	}

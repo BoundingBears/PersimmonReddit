@@ -70,7 +70,7 @@
 			hidden.hide(id, meta);
 			pushToast('Post is hidden', {
 				duration: 5000,
-				action: { label: 'UNDO', onClick: () => hidden.unhide(id) }
+				action: { label: 'Undo', onClick: () => hidden.unhide(id) }
 			});
 		}
 	}
@@ -88,7 +88,7 @@
 			saved.save(id, meta);
 			pushToast('Saved', {
 				duration: 5000,
-				action: { label: 'UNDO', onClick: () => saved.unsave(id) }
+				action: { label: 'Undo', onClick: () => saved.unsave(id) }
 			});
 		}
 	}
@@ -151,7 +151,7 @@
 			filters.add('subreddits', sub);
 			pushToast(`Muted r/${sub} in subscribed feed`, {
 				duration: 5000,
-				action: { label: 'UNDO', onClick: () => filters.remove('subreddits', sub.toLowerCase()) }
+				action: { label: 'Undo', onClick: () => filters.remove('subreddits', sub.toLowerCase()) }
 			});
 		}
 	}
@@ -267,8 +267,8 @@
 		border-bottom: 1px solid var(--md-sys-color-outline-variant);
 	}
 	.title {
-		font-size: 14px;
-		font-weight: 500;
+		font-size: var(--type-body);
+		font-weight: var(--weight-title);
 		line-height: 1.3;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
@@ -277,7 +277,7 @@
 		overflow: hidden;
 	}
 	.meta {
-		font-size: 12px;
+		font-size: var(--type-meta);
 		color: var(--md-sys-color-on-surface-variant);
 		margin-top: 4px;
 	}
@@ -294,7 +294,7 @@
 		padding: 14px 20px;
 		text-align: left;
 		font: inherit;
-		font-size: 15px;
+		font-size: var(--type-body-lg);
 		color: inherit;
 		background: transparent;
 		border: 0;

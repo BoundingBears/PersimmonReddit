@@ -76,11 +76,11 @@
 		gap: 2px;
 	}
 	.domain {
-		font-weight: 500;
-		font-size: 14px;
+		font-weight: var(--weight-title);
+		font-size: var(--type-body);
 	}
 	.url {
-		font-size: 11px;
+		font-size: var(--type-caption);
 		color: var(--md-sys-color-on-surface-variant);
 		white-space: nowrap;
 		overflow: hidden;

@@ -200,8 +200,8 @@
 		border-bottom: 1px solid var(--md-sys-color-outline-variant);
 	}
 	.brand {
-		font-size: 18px;
-		font-weight: 600;
+		font-size: var(--type-headline);
+		font-weight: var(--weight-heading);
 		color: var(--md-sys-color-primary);
 	}
 	.iconbtn {
@@ -224,8 +224,8 @@
 	}
 	.section-title {
 		padding: 8px 20px 4px;
-		font-size: 11px;
-		font-weight: 600;
+		font-size: var(--type-caption);
+		font-weight: var(--weight-heading);
 		letter-spacing: 0.5px;
 		text-transform: uppercase;
 		color: var(--md-sys-color-on-surface-variant);
@@ -245,7 +245,7 @@
 	}
 	.row.primary {
 		color: var(--md-sys-color-primary);
-		font-weight: 500;
+		font-weight: var(--weight-title);
 	}
 	.sub-icon {
 		width: 20px;
@@ -258,7 +258,7 @@
 		width: 20px;
 		text-align: center;
 		flex: none;
-		font-size: 16px;
+		font-size: var(--type-title);
 	}
 	.section-title.with-action {
 		display: flex;
@@ -309,7 +309,7 @@
 	}
 	.empty {
 		padding: 8px 20px 16px;
-		font-size: 12px;
+		font-size: var(--type-meta);
 		color: var(--md-sys-color-on-surface-variant);
 	}
 </style>

@@ -20,6 +20,7 @@ const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // once a day for the silent laun
 export interface UpdateInfo {
 	version: string; // normalised, e.g. "1.3.0"
 	url: string; // release page to open
+	apkUrl?: string; // direct .apk asset, for the in-app installer
 }
 
 export const updateAvailable = writable<UpdateInfo | null>(null);
@@ -45,8 +46,13 @@ const norm = (v: string) => v.replace(/^v/i, '').trim();
 // the one we knew about).
 function clearKnownUpdate(): void {
 	const p = get(prefs);
-	if (!p.lastKnownUpdateVersion && !p.lastKnownUpdateUrl) return;
-	prefs.update((pp) => ({ ...pp, lastKnownUpdateVersion: '', lastKnownUpdateUrl: '' }));
+	if (!p.lastKnownUpdateVersion && !p.lastKnownUpdateUrl && !p.lastKnownUpdateApkUrl) return;
+	prefs.update((pp) => ({
+		...pp,
+		lastKnownUpdateVersion: '',
+		lastKnownUpdateUrl: '',
+		lastKnownUpdateApkUrl: ''
+	}));
 	void prefs.flush();
 }
 
@@ -63,7 +69,11 @@ function rehydrateKnownUpdate(): void {
 	}
 	if (get(updateAvailable)) return; // don't clobber an already-shown (fresher) banner
 	if (p.dismissedUpdateVersion === known) return; // user dismissed this exact version
-	updateAvailable.set({ version: known, url: p.lastKnownUpdateUrl || RELEASES_PAGE });
+	updateAvailable.set({
+		version: known,
+		url: p.lastKnownUpdateUrl || RELEASES_PAGE,
+		apkUrl: p.lastKnownUpdateApkUrl || undefined
+	});
 }
 
 export async function checkForUpdates(opts: { force?: boolean } = {}): Promise<UpdateResult> {
@@ -89,7 +99,11 @@ export async function checkForUpdates(opts: { force?: boolean } = {}): Promise<U
 	try {
 		const res = await fetch(RELEASES_API, { headers: { Accept: 'application/vnd.github+json' } });
 		if (!res.ok) return 'error';
-		const data = (await res.json()) as { tag_name?: string; html_url?: string };
+		const data = (await res.json()) as {
+			tag_name?: string;
+			html_url?: string;
+			assets?: Array<{ name?: string; browser_download_url?: string }>;
+		};
 		const remote = norm(data.tag_name ?? '');
 
 		if (!remote || !isNewer(remote, norm(__APP_VERSION__))) {
@@ -99,8 +113,18 @@ export async function checkForUpdates(opts: { force?: boolean } = {}): Promise<U
 		}
 
 		const url = data.html_url || RELEASES_PAGE;
+		// The .apk asset lets us install in-app instead of bouncing to a browser.
+		// A release without one (notes-only, or a botched upload) simply falls
+		// back to the release page — apkUrl stays undefined.
+		const apkUrl =
+			data.assets?.find((a) => a.name?.toLowerCase().endsWith('.apk'))?.browser_download_url ?? '';
 		// Persist what we learned so the banner survives a relaunch (rehydrate).
-		prefs.update((p) => ({ ...p, lastKnownUpdateVersion: remote, lastKnownUpdateUrl: url }));
+		prefs.update((p) => ({
+			...p,
+			lastKnownUpdateVersion: remote,
+			lastKnownUpdateUrl: url,
+			lastKnownUpdateApkUrl: apkUrl
+		}));
 		void prefs.flush();
 
 		// A manual (forced) check always surfaces the banner; the silent launch
@@ -109,7 +133,7 @@ export async function checkForUpdates(opts: { force?: boolean } = {}): Promise<U
 			updateAvailable.set(null);
 			return 'available';
 		}
-		updateAvailable.set({ version: remote, url });
+		updateAvailable.set({ version: remote, url, apkUrl: apkUrl || undefined });
 		return 'available';
 	} catch {
 		return 'error';

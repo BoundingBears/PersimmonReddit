@@ -73,6 +73,6 @@
 		border-radius: 24px;
 		background: var(--md-sys-color-primary);
 		color: var(--md-sys-color-on-primary);
-		font-weight: 500;
+		font-weight: var(--weight-title);
 	}
 </style>

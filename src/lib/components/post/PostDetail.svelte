@@ -41,7 +41,7 @@
 			haptic();
 			pushToast('Saved', {
 				duration: 5000,
-				action: { label: 'UNDO', onClick: () => saved.unsave(id) }
+				action: { label: 'Undo', onClick: () => saved.unsave(id) }
 			});
 		}
 	}
@@ -57,7 +57,7 @@
 			haptic();
 			pushToast('Post is hidden', {
 				duration: 5000,
-				action: { label: 'UNDO', onClick: () => hidden.unhide(id) }
+				action: { label: 'Undo', onClick: () => hidden.unhide(id) }
 			});
 		}
 	}
@@ -130,7 +130,7 @@
 		align-items: center;
 		gap: 6px;
 		padding: 0 16px;
-		font-size: 12px;
+		font-size: var(--type-meta);
 		color: var(--md-sys-color-on-surface-variant);
 	}
 	.crosspost-banner a {
@@ -143,7 +143,7 @@
 		flex-wrap: wrap;
 		gap: 6px;
 		padding: 0 16px;
-		font-size: 13px;
+		font-size: var(--type-secondary);
 		color: var(--md-sys-color-on-surface-variant);
 	}
 	.dot {
@@ -153,7 +153,7 @@
 		margin: 0;
 		padding: 12px 16px 0;
 		font-size: calc(20px * var(--font-scale));
-		font-weight: 600;
+		font-weight: var(--weight-heading);
 		line-height: 1.3;
 		letter-spacing: -0.01em;
 	}
@@ -169,8 +169,8 @@
 		gap: 4px;
 		padding: 2px 8px;
 		border-radius: 12px;
-		font-size: 11px;
-		font-weight: 500;
+		font-size: var(--type-caption);
+		font-weight: var(--weight-title);
 		background: var(--md-sys-color-surface-container-high);
 		color: var(--md-sys-color-on-surface-variant);
 	}
@@ -185,7 +185,7 @@
 		padding: 8px 16px;
 		border-top: 1px solid var(--md-sys-color-outline-variant);
 		color: var(--md-sys-color-on-surface-variant);
-		font-size: 13px;
+		font-size: var(--type-secondary);
 	}
 	.action {
 		display: inline-flex;

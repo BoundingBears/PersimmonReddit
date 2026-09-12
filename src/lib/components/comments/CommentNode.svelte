@@ -100,7 +100,7 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 6px;
-		font-size: 12px;
+		font-size: var(--type-meta);
 		color: var(--md-sys-color-on-surface-variant);
 		text-align: left;
 		width: 100%;
@@ -111,27 +111,27 @@
 		border-radius: 4px;
 		background: var(--md-sys-color-primary-container);
 		color: var(--md-sys-color-on-primary-container);
-		font-weight: 600;
-		font-size: 10px;
+		font-weight: var(--weight-heading);
+		font-size: var(--type-label);
 	}
 	.mod {
 		padding: 1px 5px;
 		border-radius: 4px;
 		background: var(--md-sys-color-success);
 		color: var(--md-sys-color-on-success);
-		font-weight: 600;
-		font-size: 10px;
+		font-weight: var(--weight-heading);
+		font-size: var(--type-label);
 	}
 	.admin {
 		padding: 1px 5px;
 		border-radius: 4px;
 		background: var(--md-sys-color-error);
 		color: var(--md-sys-color-on-error);
-		font-weight: 600;
-		font-size: 10px;
+		font-weight: var(--weight-heading);
+		font-size: var(--type-label);
 	}
 	.score {
-		font-weight: 500;
+		font-weight: var(--weight-title);
 		color: var(--md-sys-color-on-surface);
 	}
 	.dot {
@@ -143,7 +143,7 @@
 	}
 	.hidden-count {
 		color: var(--md-sys-color-primary);
-		font-weight: 500;
+		font-weight: var(--weight-title);
 	}
 	.content {
 		padding-right: 4px;

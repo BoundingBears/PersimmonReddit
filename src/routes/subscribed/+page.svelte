@@ -1,4 +1,6 @@
 <script lang="ts">
+	import ErrorState from '$lib/components/shared/ErrorState.svelte';
+	import EmptyState from '$lib/components/shared/EmptyState.svelte';
 	import { onDestroy, onMount, untrack } from 'svelte';
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import TopAppBar from '$lib/components/chrome/TopAppBar.svelte';
@@ -6,7 +8,7 @@
 	import Dropdown from '$lib/components/shared/Dropdown.svelte';
 	import { getMergedSubmissions } from '$lib/reddit/endpoints';
 	import { clearCache } from '$lib/reddit/client';
-	import { subscribed } from '$lib/stores/subscribed';
+	import { subscribed, subscribedReady } from '$lib/stores/subscribed';
 	import { getFeedSnapshot, saveFeedSnapshot } from '$lib/stores/feedSnapshot';
 	import { captureScrollAnchor, restoreScrollAnchor } from '$lib/utils/scrollRestore';
 	import type { Post, Sort } from '$lib/reddit/types';
@@ -26,6 +28,16 @@
 	let sort = $state<Sort>((snap?.sort as Sort) ?? 'hot');
 	let restored = $state(!!snap);
 	let scrollRestored = $state(false);
+
+	// Gate the reload effect on the subscribed store hydrating — otherwise the
+	// first run (empty store, subsKey '') consumes the one-shot `restored` flag,
+	// and the run after hydration refetches and reshuffles the merged feed,
+	// destroying the anchor the scroll restore was aiming at.
+	let storesReady = $state(false);
+	onMount(async () => {
+		await subscribedReady;
+		storesReady = true;
+	});
 
 	// Monotonic token so a forced reload (pull-to-refresh, retry) supersedes a
 	// slow/hung in-flight load. Without it `if (loading) return` made every
@@ -67,6 +79,7 @@
 	let subsKey = $derived($subscribed.map((s) => s.name).join(','));
 
 	$effect(() => {
+		if (!storesReady) return;
 		// re-fetch when sort or the subscribed list changes
 		sort;
 		subsKey;
@@ -126,48 +139,17 @@
 </TopAppBar>
 
 {#if $subscribed.length === 0}
-	<div class="empty">
-		<p>You haven't subscribed to anything yet.</p>
-		<p>Bookmark subreddits from the Subs tab or any subreddit page; they'll show up here as a unified feed.</p>
-		<a class="cta" href="/subreddits">Discover subreddits</a>
-	</div>
+	<EmptyState
+		title="You haven't subscribed to anything yet"
+		body="Bookmark subreddits from the Subs tab or any subreddit page; they'll show up here as a unified feed."
+		actionLabel="Discover subreddits"
+		actionHref="/subreddits"
+	/>
 {:else if error}
-	<div class="error">
-		Couldn't load merged feed ({error}).
-		<button onclick={() => load(true)}>Retry</button>
-	</div>
+	<ErrorState message="Couldn't load merged feed ({error})." onRetry={() => load(true)} />
 {:else}
 	<FeedList {posts} {loading} hasMore={false} applyFilters {staleAt} onRefresh={refresh} />
 {/if}
 
 <style>
-	.empty {
-		padding: 48px 24px;
-		text-align: center;
-		color: var(--md-sys-color-on-surface-variant);
-	}
-	.empty p {
-		margin: 0 0 12px;
-	}
-	.cta {
-		display: inline-block;
-		margin-top: 12px;
-		padding: 10px 20px;
-		background: var(--md-sys-color-primary);
-		color: var(--md-sys-color-on-primary);
-		border-radius: 24px;
-		font-weight: 500;
-	}
-	.error {
-		padding: 12px 16px;
-		background: var(--md-sys-color-error);
-		color: var(--md-sys-color-on-error);
-	}
-	.error button {
-		margin-left: 8px;
-		background: var(--md-sys-color-on-error);
-		color: var(--md-sys-color-error);
-		padding: 4px 10px;
-		border-radius: 4px;
-	}
 </style>

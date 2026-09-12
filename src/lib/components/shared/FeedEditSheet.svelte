@@ -12,6 +12,7 @@
 		FEED_EDIT_OVERLAY_KEY
 	} from '$lib/stores/feedEdit';
 	import { subscribed } from '$lib/stores/subscribed';
+	import { undoable } from '$lib/utils/undoable';
 	import { groups } from '$lib/stores/groups';
 	import { dismissDrawerForNavigation } from '$lib/stores/drawer';
 	import { installIOSOverlayPopstate } from '$lib/utils/iosOverlay';
@@ -102,8 +103,18 @@
 
 	function del() {
 		if (!editName) return;
-		groups.remove(editName);
+		// Snapshot the whole group before removing it — this was the only
+		// destructive action in the app with no way back at all.
+		const snapshot = get(groups).find((g) => g.name.toLowerCase() === editName.toLowerCase());
+		const name = editName;
 		closeFeedEdit();
+		undoable({
+			message: `Deleted "${name}"`,
+			perform: () => groups.remove(name),
+			undo: () => {
+				if (snapshot) groups.hydrate([snapshot], 'merge');
+			}
+		});
 	}
 
 	function slideUp(_node: HTMLElement, { duration = 220 } = {}) {
@@ -213,11 +224,11 @@
 		flex: none;
 	}
 	.title {
-		font-size: 16px;
-		font-weight: 600;
+		font-size: var(--type-title);
+		font-weight: var(--weight-heading);
 	}
 	.meta {
-		font-size: 12px;
+		font-size: var(--type-meta);
 		color: var(--md-sys-color-on-surface-variant);
 		margin-top: 4px;
 	}
@@ -233,7 +244,7 @@
 		background: var(--md-sys-color-surface);
 		color: var(--md-sys-color-on-surface);
 		font: inherit;
-		font-size: 15px;
+		font-size: var(--type-body-lg);
 	}
 	.namefield input:focus {
 		outline: 2px solid var(--md-sys-color-primary);
@@ -241,12 +252,12 @@
 	}
 	.err {
 		margin-top: 6px;
-		font-size: 12px;
+		font-size: var(--type-meta);
 		color: var(--md-sys-color-error);
 	}
 	.hint {
 		padding: 24px 20px;
-		font-size: 13px;
+		font-size: var(--type-secondary);
 		color: var(--md-sys-color-on-surface-variant);
 		text-align: center;
 	}
@@ -266,7 +277,7 @@
 		padding: 10px 20px;
 		text-align: left;
 		font: inherit;
-		font-size: 15px;
+		font-size: var(--type-body-lg);
 		color: var(--md-sys-color-on-surface-variant);
 		background: transparent;
 		border: 0;
@@ -319,15 +330,15 @@
 		padding: 9px 16px;
 		border-radius: 20px;
 		font: inherit;
-		font-size: 14px;
+		font-size: var(--type-body);
 		color: var(--md-sys-color-on-surface-variant);
 	}
 	.save {
 		padding: 9px 20px;
 		border-radius: 20px;
 		font: inherit;
-		font-size: 14px;
-		font-weight: 600;
+		font-size: var(--type-body);
+		font-weight: var(--weight-heading);
 		background: var(--md-sys-color-primary);
 		color: var(--md-sys-color-on-primary);
 	}

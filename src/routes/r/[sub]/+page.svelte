@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ErrorState from '$lib/components/shared/ErrorState.svelte';
 	import { onDestroy, untrack } from 'svelte';
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -164,10 +165,7 @@
 </TopAppBar>
 
 {#if error}
-	<div class="error">
-		Couldn't load r/{sub} ({error}).
-		<button onclick={() => load(true)}>Retry</button>
-	</div>
+	<ErrorState message="Couldn't load r/{sub} ({error})." onRetry={() => load(true)} />
 {/if}
 
 <FeedList
@@ -192,17 +190,5 @@
 	}
 	.iconbtn:active {
 		background: var(--md-sys-color-surface-container-highest);
-	}
-	.error {
-		padding: 12px 16px;
-		background: var(--md-sys-color-error);
-		color: var(--md-sys-color-on-error);
-	}
-	.error button {
-		margin-left: 8px;
-		background: var(--md-sys-color-on-error);
-		color: var(--md-sys-color-error);
-		padding: 4px 10px;
-		border-radius: 4px;
 	}
 </style>

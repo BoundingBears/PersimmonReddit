@@ -25,9 +25,10 @@
 	}
 </script>
 
-<article
+<div
 	class="row"
 	data-post-id={post.id}
+	role="button"
 	onclick={open}
 	onkeydown={(e) => e.key === 'Enter' && open()}
 	tabindex="0"
@@ -52,7 +53,7 @@
 			<span>{formatScore(post.numComments)} cmts</span>
 		</div>
 	</div>
-</article>
+</div>
 
 <style>
 	.row {
@@ -94,8 +95,8 @@
 		gap: 4px;
 	}
 	.title {
-		font-size: calc(14px * var(--font-scale));
-		font-weight: 500;
+		font-size: calc(var(--type-body) * var(--font-scale));
+		font-weight: var(--weight-title);
 		line-height: 1.3;
 		display: -webkit-box;
 		-webkit-line-clamp: 3;
@@ -107,7 +108,7 @@
 		color: var(--md-sys-color-on-surface-variant);
 	}
 	.meta {
-		font-size: 11px;
+		font-size: var(--type-caption);
 		color: var(--md-sys-color-on-surface-variant);
 		display: flex;
 		gap: 4px;

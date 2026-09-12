@@ -93,8 +93,8 @@
 		right: 0;
 		bottom: 0;
 		padding: 16px 8px 6px;
-		font-size: 11px;
-		font-weight: 500;
+		font-size: var(--type-caption);
+		font-weight: var(--weight-title);
 		color: #fff;
 		background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
 		display: -webkit-box;

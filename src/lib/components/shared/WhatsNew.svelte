@@ -103,12 +103,12 @@
 		flex: none;
 	}
 	.title {
-		font-size: 18px;
-		font-weight: 600;
+		font-size: var(--type-headline);
+		font-weight: var(--weight-heading);
 		color: var(--md-sys-color-primary);
 	}
 	.version {
-		font-size: 12px;
+		font-size: var(--type-meta);
 		color: var(--md-sys-color-on-surface-variant);
 		margin-top: 2px;
 	}
@@ -117,8 +117,8 @@
 		padding: 4px 20px 8px;
 	}
 	.entry-title {
-		font-size: 14px;
-		font-weight: 600;
+		font-size: var(--type-body);
+		font-weight: var(--weight-heading);
 		margin: 12px 0 6px;
 	}
 	.items {
@@ -130,7 +130,7 @@
 		gap: 10px;
 	}
 	.items li {
-		font-size: 14px;
+		font-size: var(--type-body);
 		line-height: 1.45;
 	}
 	.done {
@@ -144,8 +144,8 @@
 		background: var(--md-sys-color-primary);
 		color: var(--md-sys-color-on-primary);
 		font: inherit;
-		font-size: 15px;
-		font-weight: 500;
+		font-size: var(--type-body-lg);
+		font-weight: var(--weight-title);
 		flex: none;
 	}
 	.done:active {

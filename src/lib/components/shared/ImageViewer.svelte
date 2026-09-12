@@ -106,6 +106,7 @@
 
 		<div class="media">
 			{#if current.kind === 'video'}
+				<!-- svelte-ignore a11y_media_has_caption -- Reddit-hosted video ships no caption track; there is nothing to attach. -->
 				<video src={current.url} controls autoplay playsinline></video>
 			{:else}
 				<img
@@ -201,8 +202,8 @@
 		align-items: center;
 		padding: 0 8px;
 		color: #fff;
-		font-size: 14px;
-		font-weight: 500;
+		font-size: var(--type-body);
+		font-weight: var(--weight-title);
 		pointer-events: none;
 	}
 	.caption {
@@ -213,7 +214,7 @@
 		padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
 		background: linear-gradient(to top, rgba(0, 0, 0, 0.75), transparent);
 		color: #fff;
-		font-size: 13px;
+		font-size: var(--type-secondary);
 		text-align: center;
 		pointer-events: none;
 	}
@@ -226,7 +227,7 @@
 		background: rgba(0, 0, 0, 0.85);
 		color: #fff;
 		border-radius: 20px;
-		font-size: 13px;
+		font-size: var(--type-secondary);
 		max-width: 80%;
 		text-align: center;
 	}

@@ -45,7 +45,8 @@
 		flex-direction: column;
 		align-items: center;
 		gap: 8px;
-		z-index: 150;
+		z-index: 210; /* above every sheet (160-201): a toast is feedback about
+		                   what a sheet just did, so it must never render behind one */
 		pointer-events: none;
 	}
 	.toast {
@@ -57,7 +58,7 @@
 		background: var(--md-sys-color-inverse-surface);
 		color: var(--md-sys-color-inverse-on-surface);
 		border-radius: 20px;
-		font-size: 13px;
+		font-size: var(--type-secondary);
 		max-width: min(420px, 90vw);
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 	}
@@ -75,7 +76,7 @@
 		background: transparent;
 		border: 0;
 		font: inherit;
-		font-size: 13px;
+		font-size: var(--type-secondary);
 	}
 	.action {
 		flex: none;
@@ -85,8 +86,8 @@
 		background: transparent;
 		border: 0;
 		font: inherit;
-		font-size: 13px;
-		font-weight: 600;
+		font-size: var(--type-secondary);
+		font-weight: var(--weight-heading);
 		text-transform: uppercase;
 		letter-spacing: 0.5px;
 	}

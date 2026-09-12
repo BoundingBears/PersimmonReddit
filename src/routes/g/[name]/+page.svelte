@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { onDestroy, untrack } from 'svelte';
+	import ErrorState from '$lib/components/shared/ErrorState.svelte';
+	import EmptyState from '$lib/components/shared/EmptyState.svelte';
+	import { onDestroy, onMount, untrack } from 'svelte';
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { page } from '$app/stores';
 	import TopAppBar from '$lib/components/chrome/TopAppBar.svelte';
@@ -7,7 +9,7 @@
 	import Dropdown from '$lib/components/shared/Dropdown.svelte';
 	import { getMergedSubmissions } from '$lib/reddit/endpoints';
 	import { clearCache } from '$lib/reddit/client';
-	import { groups } from '$lib/stores/groups';
+	import { groups, groupsReady } from '$lib/stores/groups';
 	import { getFeedSnapshot, saveFeedSnapshot } from '$lib/stores/feedSnapshot';
 	import { captureScrollAnchor, restoreScrollAnchor } from '$lib/utils/scrollRestore';
 	import type { Post, Sort } from '$lib/reddit/types';
@@ -29,6 +31,21 @@
 	let sort = $state<Sort>((initialSnap?.sort as Sort) ?? 'hot');
 	let restored = $state(!!initialSnap);
 	let scrollRestored = $state(false);
+
+	// Gate the reload effect on the groups store hydrating.
+	//
+	// Without this the effect ran once with $groups still empty — so `subs` was
+	// [] and subsKey '' — and that run consumed the one-shot `restored` flag.
+	// When the store then hydrated, subsKey changed to the real sub list, the
+	// effect re-ran with `restored` already false, and it refetched: a merged
+	// feed in a *different* order, which means the anchor post from the snapshot
+	// no longer exists and scroll restoration falls back to a raw pixel offset
+	// into unrelated posts. That is the "back drops me somewhere random" bug.
+	let storesReady = $state(false);
+	onMount(async () => {
+		await groupsReady;
+		storesReady = true;
+	});
 
 	// Monotonic token so a forced reload (pull-to-refresh, retry) supersedes a
 	// slow/hung in-flight load. Without it `if (loading) return` made every
@@ -68,6 +85,7 @@
 	let subsKey = $derived(subs.join(','));
 
 	$effect(() => {
+		if (!storesReady) return;
 		// Re-fetch when sort, the group, or its sub list changes.
 		sort;
 		groupName;
@@ -117,53 +135,24 @@
 </TopAppBar>
 
 {#if !group}
-	<div class="empty">
-		<p>This group doesn't exist (it may have been deleted or renamed).</p>
-		<a class="cta" href="/settings">Manage groups</a>
-	</div>
+	<EmptyState
+		title="This group doesn't exist"
+		body="It may have been deleted or renamed."
+		actionLabel="Manage groups"
+		actionHref="/settings"
+	/>
 {:else if subs.length === 0}
-	<div class="empty">
-		<p>"{group.name}" has no subreddits yet.</p>
-		<p>Add some to this group in Settings → Feeds.</p>
-		<a class="cta" href="/settings">Manage groups</a>
-	</div>
+	<EmptyState
+		title={`"${group.name}" has no subreddits yet`}
+		body="Add some to this group in Settings → Feeds."
+		actionLabel="Manage groups"
+		actionHref="/settings"
+	/>
 {:else if error}
-	<div class="error">
-		Couldn't load this group ({error}).
-		<button onclick={() => load(true)}>Retry</button>
-	</div>
+	<ErrorState message="Couldn't load this group ({error})." onRetry={() => load(true)} />
 {:else}
 	<FeedList {posts} {loading} hasMore={false} applyFilters {staleAt} onRefresh={refresh} />
 {/if}
 
 <style>
-	.empty {
-		padding: 48px 24px;
-		text-align: center;
-		color: var(--md-sys-color-on-surface-variant);
-	}
-	.empty p {
-		margin: 0 0 12px;
-	}
-	.cta {
-		display: inline-block;
-		margin-top: 12px;
-		padding: 10px 20px;
-		background: var(--md-sys-color-primary);
-		color: var(--md-sys-color-on-primary);
-		border-radius: 24px;
-		font-weight: 500;
-	}
-	.error {
-		padding: 12px 16px;
-		background: var(--md-sys-color-error);
-		color: var(--md-sys-color-on-error);
-	}
-	.error button {
-		margin-left: 8px;
-		background: var(--md-sys-color-on-error);
-		color: var(--md-sys-color-error);
-		padding: 4px 10px;
-		border-radius: 4px;
-	}
 </style>
