@@ -32,10 +32,15 @@ export function undoable(opts: {
 	perform: () => void;
 	undo: () => void;
 	duration?: number;
+	/** Stable identity for this action; repeat taps replace the toast rather
+	 *  than stacking one per tap. Defaults to the message. */
+	key?: string;
 }): void {
 	opts.perform();
 	haptic();
 	pushToast(opts.message, {
+		key: opts.key ?? `undo:${opts.message}`,
+		replace: true,
 		duration: opts.duration ?? UNDO_DURATION_MS,
 		action: { label: UNDO_LABEL, onClick: opts.undo }
 	});
@@ -54,6 +59,7 @@ export function undoableClear(opts: {
 }): void {
 	if (opts.count === 0) return;
 	undoable({
+		key: `clear:${opts.plural}`,
 		message: `Cleared ${opts.count} ${opts.count === 1 ? opts.singular : opts.plural}`,
 		perform: opts.perform,
 		undo: opts.undo

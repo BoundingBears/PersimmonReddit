@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { undoable } from '$lib/utils/undoable';
+	import { blockedUsers, isBlocked } from '$lib/stores/blockedUsers';
 	import { onMount } from 'svelte';
 	import { get } from 'svelte/store';
 	import { fade } from 'svelte/transition';
@@ -137,6 +139,25 @@
 		goto(`/r/${sub}`);
 	}
 
+	let userBlocked = $derived(!!post && isBlocked($blockedUsers, post.author));
+
+	function handleBlockUser() {
+		if (!post) return;
+		const author = post.author;
+		const wasBlocked = isBlocked($blockedUsers, author);
+		closePostActions();
+		if (wasBlocked) {
+			blockedUsers.unblock(author);
+			pushToast(`Unblocked u/${author}`);
+		} else {
+			undoable({
+				message: `Blocked u/${author}`,
+				perform: () => blockedUsers.block(author),
+				undo: () => blockedUsers.unblock(author)
+			});
+		}
+	}
+
 	let subMuted = $derived(!!post && $filters.subreddits.includes(post.subreddit.toLowerCase()));
 
 	function handleMuteSub() {
@@ -217,6 +238,14 @@
 					<span>Open u/{post.author}</span>
 				</button>
 			</li>
+			{#if post.author !== '[deleted]'}
+				<li role="menuitem">
+					<button class="action" onclick={handleBlockUser}>
+						<Icon name={userBlocked ? 'person' : 'block'} size={22} />
+						<span>{userBlocked ? `Unblock u/${post.author}` : `Block u/${post.author}`}</span>
+					</button>
+				</li>
+			{/if}
 			<li role="menuitem">
 				<button class="action" onclick={handleSub}>
 					<Icon name="forum" size={22} />

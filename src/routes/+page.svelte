@@ -233,7 +233,6 @@
 		{posts}
 		{loading}
 		hasMore={after !== null}
-		feedKey={{ sort: $prefs.homeView, after }}
 		applyFilters={$prefs.homeView === 'subscribed'}
 		{staleAt}
 		{error}

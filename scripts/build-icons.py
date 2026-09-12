@@ -22,6 +22,7 @@ CODEPOINTS_URL = "https://github.com/google/material-design-icons/raw/master/var
 
 # Every icon name the app references (literal + dynamic), plus a small buffer.
 USED = """
+drag_handle sort_by_alpha
 add arrow_back arrow_drop_down arrow_upward auto_awesome block bookmark
 bookmark_border bookmarks check check_box check_box_outline_blank chevron_left
 chevron_right close cloud_off code collections comment delete description

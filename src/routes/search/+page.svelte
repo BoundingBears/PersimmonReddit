@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { blockedUsers, isBlocked } from '$lib/stores/blockedUsers';
 	import ErrorState from '$lib/components/shared/ErrorState.svelte';
 	import { onDestroy, untrack } from 'svelte';
 	import { afterNavigate, goto } from '$app/navigation';
@@ -160,7 +161,7 @@
 {#if loading}<div class="status">Searching…</div>{/if}
 
 {#if tab === 'posts'}
-	{#each posts as p (p.id)}<PostCompact post={p} />{/each}
+	{#each posts.filter((p) => !isBlocked($blockedUsers, p.author)) as p (p.id)}<PostCompact post={p} />{/each}
 {:else if tab === 'subreddits'}
 	{#each subs as s (s.name)}
 		<div class="sub-row">

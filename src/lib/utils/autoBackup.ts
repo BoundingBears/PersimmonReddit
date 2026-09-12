@@ -21,6 +21,7 @@ import { readPostsReady } from '$lib/stores/readPosts';
 import { filtersReady } from '$lib/stores/filters';
 import { subSortReady } from '$lib/stores/subSort';
 import { groupsReady } from '$lib/stores/groups';
+import { blockedUsersReady } from '$lib/stores/blockedUsers';
 
 const AUTO_BACKUP_PATH = `Persimmon/${AUTO_BACKUP_FILENAME}`;
 
@@ -61,7 +62,8 @@ export function startAutoBackup(): () => void {
 		readPostsReady,
 		filtersReady,
 		subSortReady,
-		groupsReady
+		groupsReady,
+		blockedUsersReady
 	]).then(() => {
 		hydrated = true;
 	});

@@ -25,6 +25,10 @@ export interface Toast {
 }
 
 const DEFAULT_DURATION_MS = 3000;
+// Hard cap on simultaneous toasts. A button tapped twenty times in a row
+// used to produce twenty stacked toasts that filled the screen; beyond this
+// many, the oldest is dropped to make room.
+const MAX_TOASTS = 3;
 
 export const toasts = writable<Toast[]>([]);
 
@@ -69,7 +73,14 @@ export function pushToast(message: string, opts?: PushToastOptions): void {
 		}
 		id = nextId++;
 		armTimer = true;
-		return [...list, { id, message, key, duration, action }];
+		const next = [...list, { id, message, key, duration, action }];
+		while (next.length > MAX_TOASTS) {
+			const dropped = next.shift()!;
+			const t = timers.get(dropped.id);
+			if (t) clearTimeout(t);
+			timers.delete(dropped.id);
+		}
+		return next;
 	});
 	if (armTimer) {
 		const t = setTimeout(() => dismissToast(id), duration);

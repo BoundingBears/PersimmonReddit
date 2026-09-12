@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { blockedUsers, isBlocked } from '$lib/stores/blockedUsers';
 	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import PostCard from './PostCard.svelte';
@@ -12,7 +13,6 @@
 	import { readPosts } from '$lib/stores/readPosts';
 	import { filters, postMatchesFilters } from '$lib/stores/filters';
 	import { IS_IOS } from '$lib/utils/platform';
-	import { setFeedContext } from '$lib/stores/history';
 	import { pullToRefresh, type PullToRefreshState } from '$lib/actions/pullToRefresh';
 	import type { Post } from '$lib/reddit/types';
 
@@ -20,7 +20,6 @@
 		posts: Post[];
 		loading?: boolean;
 		hasMore?: boolean;
-		feedKey?: { sort?: string; subreddit?: string; after?: string | null };
 		// Apply the user's content filters (keyword/subreddit/domain). Only the
 		// merged subscribed feed opts in — browsing a specific sub or the front
 		// page shouldn't silently drop posts.
@@ -38,7 +37,6 @@
 		posts,
 		loading = false,
 		hasMore = false,
-		feedKey,
 		applyFilters = false,
 		staleAt = null,
 		error = null,
@@ -61,6 +59,8 @@
 	let baseVisible = $derived(
 		posts.filter((p) => {
 			if ($hidden.has(p.id)) return false;
+			// Blocked authors go regardless of applyFilters — a block means everywhere.
+			if (isBlocked($blockedUsers, p.author)) return false;
 			if (applyFilters && postMatchesFilters(p, $filters)) return false;
 			if (!p.over18) return true;
 			if (IS_IOS) return false;
@@ -171,15 +171,6 @@
 			onLoadMore();
 		}
 	});
-
-	function recordContext(post: Post) {
-		setFeedContext({
-			feedItemIds: visible.map((p) => p.id),
-			after: feedKey?.after,
-			sort: feedKey?.sort,
-			subreddit: feedKey?.subreddit
-		});
-	}
 </script>
 
 <div class="ptr" use:pullToRefresh={{ onRefresh: onRefresh ?? (() => {}), onState: onPullState }}>
@@ -198,11 +189,11 @@
 		<div class="list" data-layout={$prefs.layout}>
 			{#each shown as post (post.id)}
 				{#if $prefs.layout === 'card'}
-					<PostCard {post} onOpen={() => { recordContext(post); goto(`/comments/${post.id}`); }} />
+					<PostCard {post} onOpen={() => goto(`/comments/${post.id}`)} />
 				{:else if $prefs.layout === 'compact'}
-					<PostCompact {post} onOpen={() => { recordContext(post); goto(`/comments/${post.id}`); }} />
+					<PostCompact {post} onOpen={() => goto(`/comments/${post.id}`)} />
 				{:else}
-					<PostGallery {post} onOpen={() => { recordContext(post); goto(`/comments/${post.id}`); }} />
+					<PostGallery {post} onOpen={() => goto(`/comments/${post.id}`)} />
 				{/if}
 			{/each}
 

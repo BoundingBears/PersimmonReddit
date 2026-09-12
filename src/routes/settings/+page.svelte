@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { blockedUsers } from '$lib/stores/blockedUsers';
 	import { IS_NATIVE, IS_IOS } from '$lib/utils/platform';
 	import { openExternal } from '$lib/utils/openExternal';
 	import { GITHUB_REPO_URL as GITHUB_URL, KOFI_URL } from '$lib/utils/appLinks';
@@ -68,6 +69,12 @@
 		{ kind: 'subreddits', label: 'Subreddits', placeholder: 'e.g. funny' },
 		{ kind: 'domains', label: 'Link domains', placeholder: 'e.g. x.com' }
 	];
+	let blockInput = $state('');
+	function addBlockedUser() {
+		if (!blockInput.trim()) return;
+		blockedUsers.block(blockInput);
+		blockInput = '';
+	}
 	let filterInputs = $state<Record<FilterKind, string>>({ keywords: '', subreddits: '', domains: '' });
 	function addFilter(kind: FilterKind) {
 		if (!filterInputs[kind].trim()) return;
@@ -164,7 +171,7 @@
 			count: () => String($feedCache.size),
 			clear: () => {
 				feedCache.clear();
-				pushToast('Cleared cached feeds');
+				pushToast('Cleared cached feeds', { key: 'clear:feedcache', replace: true });
 			}
 		},
 		{
@@ -188,7 +195,7 @@
 			count: () => '',
 			clear: () => {
 				clearCache();
-				pushToast('Cleared in-memory cache');
+				pushToast('Cleared in-memory cache', { key: 'clear:memcache', replace: true });
 			}
 		}
 	];
@@ -218,6 +225,7 @@
 	function resetPreferences() {
 		const snapshot = { ...get(prefs) };
 		undoable({
+			key: 'reset-prefs',
 			message: 'Preferences reset to defaults',
 			perform: () => prefs.reset(),
 			undo: () => prefs.set(snapshot)
@@ -351,6 +359,26 @@
 				</form>
 			</div>
 		{/each}
+		<div class="filter-group">
+			<div class="filter-label">Blocked users</div>
+			<div class="filter-hint">
+				Unlike the filters above, this applies everywhere: their posts leave every feed and search, and their comments collapse in every thread.
+			</div>
+			{#if $blockedUsers.size > 0}
+				<div class="chips">
+					{#each [...$blockedUsers.values()] as u (u.name)}
+						<button class="chip" onclick={() => blockedUsers.unblock(u.name)}>
+							<span>u/{u.name}</span>
+							<Icon name="close" size={14} />
+						</button>
+					{/each}
+				</div>
+			{/if}
+			<form class="filter-add" onsubmit={(e) => { e.preventDefault(); addBlockedUser(); }}>
+				<input type="text" bind:value={blockInput} placeholder="username" />
+				<button type="submit" class="add-btn" aria-label="Block user"><Icon name="add" size={20} /></button>
+			</form>
+		</div>
 	</section>
 
 	<section>
@@ -426,7 +454,7 @@
 				<div class="import-title">Restore this backup?</div>
 				<div class="import-meta">
 					{pendingSummary.subscribed} subs · {pendingSummary.saved} saved · {pendingSummary.hidden} hidden
-					· {pendingSummary.filters} filters · {pendingSummary.readPosts} read
+					· {pendingSummary.filters} filters · {pendingSummary.blockedUsers} blocked · {pendingSummary.readPosts} read
 				</div>
 				<div class="import-meta dim">
 					Exported {new Date(pendingSummary.exportedAt).toLocaleDateString()} · v{pendingSummary.appVersion}
@@ -474,7 +502,10 @@
 		{/each}
 		<button class="nav danger" onclick={resetPreferences}>
 			<Icon name="warning" size={20} />
-			<span class="label"><span class="title">Reset all preferences</span></span>
+			<span class="label">
+				<span class="title">Reset all preferences</span>
+				<span class="sub">Settings only — subs, saved posts, filters and blocks are kept</span>
+			</span>
 		</button>
 	</section>
 
@@ -703,6 +734,12 @@
 	}
 	.filter-group {
 		padding: 8px 16px 12px;
+	}
+	.filter-hint {
+		margin: -4px 0 10px;
+		font-size: var(--type-meta);
+		line-height: 1.4;
+		color: var(--md-sys-color-on-surface-variant);
 	}
 	.filter-label {
 		font-size: var(--type-secondary);

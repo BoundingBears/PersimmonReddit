@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { blockedUsers, isBlocked } from '$lib/stores/blockedUsers';
 	import Icon from '$lib/components/shared/Icon.svelte';
 	import RelativeTime from '$lib/components/shared/RelativeTime.svelte';
 	import UserChip from '$lib/components/shared/UserChip.svelte';
@@ -15,6 +16,7 @@
 
 	let { comment, linkFullId, opAuthor }: Props = $props();
 	let collapsed = $state(false);
+	let blocked = $derived(isBlocked($blockedUsers, comment.author));
 	// Step hue by the golden angle so adjacent depths land far apart on the
 	// color wheel — keeps depths visually distinct at any nesting level
 	// instead of cycling through a fixed 6-color palette.
@@ -39,6 +41,17 @@
 <div class="node" style:--depth-color={depthTone}>
 	<button class="rail" onclick={toggle} aria-label={collapsed ? 'Expand' : 'Collapse'}></button>
 	<div class="body">
+		{#if blocked}
+			<!-- Stub, not removal: replies to a blocked user still make sense in
+			     context, so the thread keeps its shape and only their words go. -->
+			<div class="blocked">
+				<Icon name="block" size={14} />
+				<span>Blocked user</span>
+			</div>
+			{#if comment.replies.length > 0}
+				<CommentChildren nodes={comment.replies} {linkFullId} {opAuthor} />
+			{/if}
+		{:else}
 		<button class="header" onclick={toggle}>
 			<UserChip name={comment.author} />
 			{#if comment.isSubmitter}
@@ -68,6 +81,7 @@
 			{#if comment.replies.length > 0}
 				<CommentChildren nodes={comment.replies} {linkFullId} {opAuthor} />
 			{/if}
+		{/if}
 		{/if}
 	</div>
 </div>
@@ -147,5 +161,14 @@
 	}
 	.content {
 		padding-right: 4px;
+	}
+	.blocked {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 2px 0 8px;
+		font-size: var(--type-meta);
+		font-style: italic;
+		color: var(--md-sys-color-on-surface-variant);
 	}
 </style>

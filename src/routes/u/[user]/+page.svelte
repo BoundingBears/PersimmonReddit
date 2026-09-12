@@ -1,4 +1,8 @@
 <script lang="ts">
+	import { undoable } from '$lib/utils/undoable';
+	import { pushToast } from '$lib/stores/toast';
+	import Icon from '$lib/components/shared/Icon.svelte';
+	import { blockedUsers, isBlocked } from '$lib/stores/blockedUsers';
 	import ErrorState from '$lib/components/shared/ErrorState.svelte';
 	import EmptyState from '$lib/components/shared/EmptyState.svelte';
 	import { onDestroy, untrack } from 'svelte';
@@ -58,6 +62,20 @@
 
 	let restoring = $state(false);
 
+	let blocked = $derived(isBlocked($blockedUsers, username));
+	function toggleBlock() {
+		if (blocked) {
+			blockedUsers.unblock(username);
+			pushToast(`Unblocked u/${username}`);
+			return;
+		}
+		undoable({
+			message: `Blocked u/${username}`,
+			perform: () => blockedUsers.block(username),
+			undo: () => blockedUsers.unblock(username)
+		});
+	}
+
 	$effect(() => {
 		username;
 		tab;
@@ -100,7 +118,16 @@
 	onDestroy(() => cancelRestore?.());
 </script>
 
-<TopAppBar title="u/{username}" subtitle={user ? `${formatScore(user.totalKarma)} karma` : ''} showBack />
+<TopAppBar title="u/{username}" subtitle={user ? `${formatScore(user.totalKarma)} karma` : ''} showBack>
+	{#snippet actions()}
+		<button class="iconbtn" onclick={toggleBlock} aria-label={blocked ? 'Unblock user' : 'Block user'}>
+			<Icon name={blocked ? 'person' : 'block'} size={22} />
+		</button>
+	{/snippet}
+</TopAppBar>
+{#if blocked}
+	<div class="blocked-note">You've blocked u/{username}. Their posts and comments are hidden everywhere else in Persimmon.</div>
+{/if}
 
 {#if user}
 	<header class="profile">
@@ -154,6 +181,24 @@
 </div>
 
 <style>
+	.iconbtn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 40px;
+		height: 40px;
+		border-radius: 20px;
+	}
+	.iconbtn:active {
+		background: var(--md-sys-color-surface-container-highest);
+	}
+	.blocked-note {
+		padding: var(--space-md) var(--space-lg);
+		font-size: var(--type-secondary);
+		line-height: 1.4;
+		background: var(--md-sys-color-surface-container);
+		color: var(--md-sys-color-on-surface-variant);
+	}
 	.profile {
 		display: flex;
 		align-items: center;

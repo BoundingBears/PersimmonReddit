@@ -7,12 +7,24 @@
 	import { formatScore } from '$lib/utils/format';
 	import { getPopularSubreddits, getSubreddit } from '$lib/reddit/endpoints';
 	import { subscribed } from '$lib/stores/subscribed';
+	import { flip } from 'svelte/animate';
+	import { dragReorder } from '$lib/actions/dragReorder';
+	import { pushToast } from '$lib/stores/toast';
 	import type { Subreddit } from '$lib/reddit/types';
 
 	let subs = $state<Subreddit[]>([]);
 	let after = $state<string | null>(null);
 	let loading = $state(false);
 	let error = $state<string | null>(null);
+
+	// Edit mode for the subscribed list: rows stop navigating, grow a drag
+	// handle, and can be reordered. Order matters beyond the list — the merged
+	// feed round-robins through subs in this order for hot/top/rising.
+	let editing = $state(false);
+	function sortAlpha() {
+		subscribed.sortAlpha();
+		pushToast('Sorted A–Z');
+	}
 
 	async function load(reset = false) {
 		if (loading) return;
@@ -61,7 +73,22 @@
 	});
 </script>
 
-<TopAppBar title="Subreddits" />
+<TopAppBar title="Subreddits">
+	{#snippet actions()}
+		{#if $subscribed.length > 1}
+			{#if editing}
+				<button class="iconbtn" onclick={sortAlpha} aria-label="Sort A to Z">
+					<Icon name="sort_by_alpha" size={22} />
+				</button>
+				<button class="textbtn" onclick={() => (editing = false)}>Done</button>
+			{:else}
+				<button class="iconbtn" onclick={() => (editing = true)} aria-label="Edit subscribed list">
+					<Icon name="edit" size={22} />
+				</button>
+			{/if}
+		{/if}
+	{/snippet}
+</TopAppBar>
 
 {#if $subscribed.length > 0}
 	<section class="section">
@@ -73,9 +100,19 @@
 				<div class="stats">Combined feed</div>
 			</div>
 		</a>
-		{#each $subscribed as entry (entry.name)}
-			<div class="sub-row">
-				<a class="row-link" href={`/r/${entry.name}`}>
+		<div
+			class="sub-list"
+			use:dragReorder={{
+				handle: '.handle',
+				row: '.sub-row',
+				enabled: editing,
+				onMove: (from, to) => subscribed.move(from, to)
+			}}
+		>
+		{#each $subscribed as entry, i (entry.name)}
+			<div class="sub-row" class:editing data-index={i} animate:flip={{ duration: 160 }}>
+				<!-- No href while editing: a tap mid-rearrange must not navigate. -->
+				<a class="row-link" href={editing ? undefined : `/r/${entry.name}`}>
 					{#if entry.iconImg}
 						<img src={entry.iconImg} alt="" referrerpolicy="no-referrer" />
 					{:else}
@@ -91,8 +128,16 @@
 				<button class="iconbtn" onclick={() => subscribed.remove(entry.name)} aria-label="Unsubscribe">
 					<Icon name="bookmark" size={22} filled />
 				</button>
+				{#if editing}
+					<!-- Pointer-only affordance; keyboard users have Sort A–Z. Hidden from
+					     AT rather than given a button role it can't honour. -->
+					<span class="handle" aria-hidden="true">
+						<Icon name="drag_handle" size={24} />
+					</span>
+				{/if}
 			</div>
 		{/each}
+		</div>
 	</section>
 {/if}
 
@@ -228,5 +273,40 @@
 	.more {
 		font-weight: var(--weight-title);
 		color: var(--md-sys-color-primary);
+	}
+	.textbtn {
+		padding: 8px 12px;
+		border-radius: 20px;
+		font: inherit;
+		font-size: var(--type-body);
+		font-weight: var(--weight-title);
+		color: var(--md-sys-color-primary);
+	}
+	.textbtn:active {
+		background: var(--md-sys-color-surface-container-highest);
+	}
+	/* The grab area. touch-action:none is what lets pointermove keep firing on
+	   a touch drag instead of the browser claiming it as a scroll. */
+	.handle {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 44px;
+		height: 44px;
+		margin-right: 4px;
+		color: var(--md-sys-color-on-surface-variant);
+		touch-action: none;
+		cursor: grab;
+	}
+	.sub-row.editing .row-link {
+		cursor: default;
+	}
+	/* `dragging` is added by the action at runtime, so it must be :global or
+	   Svelte's scoped-CSS pass strips the rule as unused. */
+	.sub-row:global(.dragging) {
+		background: var(--md-sys-color-surface-container-high);
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+		position: relative;
+		z-index: 1;
 	}
 </style>

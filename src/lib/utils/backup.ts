@@ -15,6 +15,7 @@ import { readPosts } from '$lib/stores/readPosts';
 import { filters, type FilterRules } from '$lib/stores/filters';
 import { subSort, type SubSortEntry } from '$lib/stores/subSort';
 import { groups, type GroupEntry } from '$lib/stores/groups';
+import { blockedUsers, type BlockedUser } from '$lib/stores/blockedUsers';
 
 export interface Backup {
 	app: 'persimmon';
@@ -30,6 +31,7 @@ export interface Backup {
 		filters: FilterRules;
 		subSort: Array<[string, SubSortEntry]>;
 		groups: GroupEntry[];
+		blockedUsers: BlockedUser[];
 	};
 }
 
@@ -55,7 +57,8 @@ export function exportBackup(): Backup {
 			readPosts: [...get(readPosts).entries()],
 			filters: get(filters),
 			subSort: [...get(subSort).entries()],
-			groups: get(groups)
+			groups: get(groups),
+			blockedUsers: [...get(blockedUsers).values()]
 		}
 	};
 }
@@ -88,7 +91,8 @@ export function parseBackup(input: unknown): Backup | null {
 			readPosts: Array.isArray(d.readPosts) ? (d.readPosts as Array<[string, number]>) : [],
 			filters: (d.filters && typeof d.filters === 'object' ? d.filters : EMPTY_FILTERS) as FilterRules,
 			subSort: Array.isArray(d.subSort) ? (d.subSort as Array<[string, SubSortEntry]>) : [],
-			groups: Array.isArray(d.groups) ? (d.groups as GroupEntry[]) : []
+			groups: Array.isArray(d.groups) ? (d.groups as GroupEntry[]) : [],
+			blockedUsers: Array.isArray(d.blockedUsers) ? (d.blockedUsers as BlockedUser[]) : []
 		}
 	};
 }
@@ -99,6 +103,7 @@ export interface BackupSummary {
 	hidden: number;
 	readPosts: number;
 	filters: number;
+	blockedUsers: number;
 	exportedAt: number;
 	appVersion: string;
 }
@@ -111,6 +116,7 @@ export function summarize(b: Backup): BackupSummary {
 		hidden: b.data.hidden.length,
 		readPosts: b.data.readPosts.length,
 		filters: (f.keywords?.length ?? 0) + (f.subreddits?.length ?? 0) + (f.domains?.length ?? 0),
+		blockedUsers: b.data.blockedUsers.length,
 		exportedAt: b.exportedAt,
 		appVersion: b.appVersion
 	};
@@ -125,6 +131,7 @@ export function importBackup(b: Backup, mode: 'merge' | 'replace'): void {
 	filters.hydrate(b.data.filters, mode);
 	subSort.hydrate(b.data.subSort, mode);
 	groups.hydrate(b.data.groups, mode);
+	blockedUsers.hydrate(b.data.blockedUsers, mode);
 	// Preferences are a single object, so merging scalars is meaningless — only
 	// a full restore touches them, and we keep any keys this build added that
 	// the backup predates.

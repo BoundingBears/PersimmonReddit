@@ -10,6 +10,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.3.4',
+		title: 'Block users, reorder subs & no more surprise swipes',
+		items: [
+			'🚫 Block users — long-press a post or open a profile to block someone; their posts leave every feed and their comments collapse everywhere. Manage the list in Settings → Filters.',
+			'↕️ Rearrange your subscribed subs — tap Edit on the Subs tab and drag the ≡ handle. The order also decides who leads the combined feed. Sort A–Z is there too.',
+			'👋 Removed swipe-between-posts — the only gestures now are Android’s own. Tapping a clear button repeatedly no longer floods the screen with toasts.'
+		]
+	},
+	{
 		version: '1.3.3',
 		title: 'One-tap updates, a tidier Settings & back-button fixes',
 		items: [

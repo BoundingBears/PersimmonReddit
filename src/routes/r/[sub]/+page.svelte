@@ -172,7 +172,6 @@
 	{posts}
 	{loading}
 	hasMore={after !== null}
-	feedKey={{ sort, subreddit: sub, after }}
 	{staleAt}
 	{error}
 	onLoadMore={() => load(false)}

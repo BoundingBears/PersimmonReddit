@@ -1,7 +1,6 @@
 <script lang="ts">
 	import ErrorState from '$lib/components/shared/ErrorState.svelte';
 	import { onDestroy, untrack } from 'svelte';
-	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import TopAppBar from '$lib/components/chrome/TopAppBar.svelte';
 	import PostDetail from '$lib/components/post/PostDetail.svelte';
@@ -13,8 +12,6 @@
 	import { prefs } from '$lib/stores/prefs';
 	import { readPosts } from '$lib/stores/readPosts';
 	import { IS_IOS } from '$lib/utils/platform';
-	import { getFeedContext } from '$lib/stores/history';
-	import { swipeNav } from '$lib/utils/swipeNav';
 	import { pullToRefresh, type PullToRefreshState } from '$lib/actions/pullToRefresh';
 	import type { CommentNode, CommentSort, Post } from '$lib/reddit/types';
 
@@ -69,20 +66,6 @@
 		untrack(() => load());
 	});
 
-	function navigate(direction: 'prev' | 'next') {
-		const ctx = getFeedContext();
-		if (!ctx?.feedItemIds.length) return;
-		const idx = ctx.feedItemIds.indexOf(id);
-		if (idx === -1) return;
-		const targetIdx = direction === 'prev' ? idx - 1 : idx + 1;
-		const targetId = ctx.feedItemIds[targetIdx];
-		// replaceState, NOT a push: swiping between posts is moving *within* one
-		// "reading a post" step, not descending deeper. With a push, swiping
-		// through five posts stacked five history entries and the back button
-		// walked them one at a time instead of returning to the feed.
-		if (targetId) goto(`/comments/${targetId}`, { replaceState: true });
-	}
-
 	let pullDistance = $state(0);
 	let refreshing = $state(false);
 	function onPullState(s: PullToRefreshState) {
@@ -111,11 +94,7 @@
 	<ErrorState message={error} onRetry={load} />
 {/if}
 
-<div
-	class="ptr"
-	use:swipeNav={{ onPrev: () => navigate('prev'), onNext: () => navigate('next') }}
-	use:pullToRefresh={{ onRefresh: load, onState: onPullState }}
->
+<div class="ptr" use:pullToRefresh={{ onRefresh: load, onState: onPullState }}>
 	<PullIndicator distance={pullDistance} {refreshing} />
 	{#if post && blockedNsfw}
 		<div class="blocked">

@@ -51,6 +51,20 @@ export const subscribed = {
 		});
 		if (removed) haptic();
 	},
+	// Order is not cosmetic: getMergedSubmissions round-robins through subs in
+	// this order for hot/top/rising, so slot 0 leads every round of the feed.
+	move(from: number, to: number): void {
+		internal.update((arr) => {
+			if (from === to || from < 0 || to < 0 || from >= arr.length || to >= arr.length) return arr;
+			const next = [...arr];
+			const [item] = next.splice(from, 1);
+			next.splice(to, 0, item);
+			return next;
+		});
+	},
+	sortAlpha(): void {
+		internal.update((arr) => [...arr].sort((a, b) => lower(a.name).localeCompare(lower(b.name))));
+	},
 	has(name: string, list: SubscribedEntry[]): boolean {
 		const l = lower(name);
 		return list.some((e) => lower(e.name) === l);
