@@ -1,4 +1,4 @@
-// Auto-scrolls the window when lazy-mode is on. Touch/mouse interaction pauses
+// Auto-scrolls the page (the window, or an open post layer) when lazy-mode is on. Touch/mouse interaction pauses
 // briefly. Implemented via requestAnimationFrame so we get smooth, jank-free
 // scrolling that yields to the user immediately on input.
 //
@@ -7,6 +7,7 @@
 //   onMount(() => startLazyScroll(() => $prefs.lazyMode, () => $prefs.lazyModePxPerSec));
 
 import { browser } from '$app/environment';
+import { activeScrollBy, activeScrollTop } from './scroller';
 
 const RESUME_AFTER_MS = 1500;
 
@@ -37,10 +38,10 @@ export function startLazyScroll(
 		const dt = (ts - lastTs) / 1000;
 		lastTs = ts;
 		const delta = pxPerSec() * dt;
-		const before = window.scrollY;
-		window.scrollBy({ top: delta, behavior: 'instant' as ScrollBehavior });
+		const before = activeScrollTop();
+		activeScrollBy(delta);
 		// If we couldn't scroll any further, pause briefly so we don't burn CPU.
-		if (window.scrollY === before) {
+		if (activeScrollTop() === before) {
 			pausedUntil = ts + 5000;
 		}
 	}

@@ -10,6 +10,7 @@
 	import { page } from '$app/stores';
 	import TopAppBar from '$lib/components/chrome/TopAppBar.svelte';
 	import PostCompact from '$lib/components/feed/PostCompact.svelte';
+	import Tabs from '$lib/components/shared/Tabs.svelte';
 	import CommentNode from '$lib/components/comments/CommentNode.svelte';
 	import { formatScore } from '$lib/utils/format';
 	import { getUser, getUserOverviewListing } from '$lib/reddit/endpoints';
@@ -26,6 +27,11 @@
 	let items = $state<Array<{ kind: 'post'; post: Post } | { kind: 'comment'; comment: Comment }>>([]);
 	let after = $state<string | null>(null);
 	let tab = $state<'overview' | 'posts' | 'comments'>('overview');
+	const TAB_ITEMS: ReadonlyArray<{ value: 'overview' | 'posts' | 'comments'; label: string }> = [
+		{ value: 'overview', label: 'Overview' },
+		{ value: 'posts', label: 'Posts' },
+		{ value: 'comments', label: 'Comments' }
+	];
 	let loading = $state(false);
 	let error = $state<string | null>(null);
 
@@ -141,17 +147,7 @@
 	</header>
 {/if}
 
-<div class="tabs" role="tablist">
-	{#each ['overview', 'posts', 'comments'] as t}
-		<button
-			class="tab"
-			class:active={tab === t}
-			onclick={() => (tab = t as typeof tab)}
-		>
-			{t}
-		</button>
-	{/each}
-</div>
+<Tabs tabs={TAB_ITEMS} bind:value={tab} />
 
 {#if error}<ErrorState message={error} />{/if}
 
@@ -219,23 +215,6 @@
 	.stats strong {
 		color: var(--md-sys-color-on-surface);
 		font-weight: var(--weight-heading);
-	}
-	.tabs {
-		display: flex;
-		border-bottom: 1px solid var(--md-sys-color-outline-variant);
-	}
-	.tab {
-		flex: 1;
-		padding: 10px;
-		font-size: var(--type-secondary);
-		font-weight: var(--weight-title);
-		color: var(--md-sys-color-on-surface-variant);
-		text-transform: capitalize;
-		border-bottom: 2px solid transparent;
-	}
-	.tab.active {
-		color: var(--md-sys-color-primary);
-		border-bottom-color: var(--md-sys-color-primary);
 	}
 	.list {
 		display: flex;

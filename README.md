@@ -1,178 +1,123 @@
 # 🍊 Persimmon
 
-> *A read-only Reddit client for Android, made with care, Material 3, and absolutely zero login walls.* ✨
+A read-only Reddit client for Android. No account, no ads, no tracking.
 
-🌸 Persimmon believes scrolling should feel nice. No ads, no tracking, no analytics, no account required, no API key, no nonsense. Just feeds, posts, comments, and a little bit of softness.
+Persimmon is for reading Reddit and nothing else: feeds, posts, comments, pictures and video, in an app that opens fast, remembers where you were, and never asks you to sign in or install anything.
 
----
+[**Download the latest release**](https://github.com/BoundingBears/PersimmonReddit/releases/latest)
 
-## 🎀 Meet Persimmon-chan
+<p align="center">
+  <img src="docs/screenshots/launch.jpg" width="23%" alt="The launch animation: orange and green with the name Persimmon for Reddit">
+  <img src="docs/screenshots/feed.jpg" width="23%" alt="A subreddit feed in the card layout">
+  <img src="docs/screenshots/post.jpg" width="23%" alt="A post opened from the feed">
+  <img src="docs/screenshots/comments.jpg" width="23%" alt="A comment thread">
+</p>
+<p align="center">
+  <img src="docs/screenshots/viewer.jpg" width="23%" alt="The fullscreen image viewer">
+  <img src="docs/screenshots/themes.jpg" width="23%" alt="Settings with the eight themes">
+  <img src="docs/screenshots/lock.jpg" width="23%" alt="The lock screen for the private folder or the whole app">
+</p>
 
-Persimmon-chan is the (currently imaginary) friendly face of this little garden: a cheerful seasonal sprite themed around the persimmon fruit. Warm orange-red, leafy green hair, a quiet sense of mischief, probably carrying a tiny basket of fruit.
+## What it does
 
-**She doesn't exist yet.** We need someone to draw her! See [🎨 Help Wanted](#-help-wanted) below if you want to be the artist who brings her to life. You'd be the very first community contributor and you'd ship in the next release. 💕
+**Reading**
 
----
+- Front page, r/all, r/popular and any subreddit, in three layouts: cards, compact, or a picture grid
+- Posts open instantly on top of the feed, and Back puts you exactly where you were
+- Comments, sortable by best, top, new and more
+- Reddit video with sound, and YouTube, Twitch and Streamable clips that play inside the post
+- A fullscreen image viewer: swipe up and down through galleries, pinch or double-tap to zoom, copy, share or save the picture
+- Search posts, subreddits and users, or paste a Reddit link into Search to jump straight to it
+- Reddit links from your browser and other apps can open in Persimmon
 
-## 🍊 Why Persimmon?
+**Your own Reddit, kept on your phone**
 
-In 2023, Reddit killed third-party apps. The pricing gutted Apollo overnight. Reddit is Fun went down with it. Sync. BaconReader. Boost. One by one, the apps that made browsing Reddit pleasant just… disappeared. The official Reddit app rushed in to fill the vacuum, and somehow, in a market suddenly free of competition, it managed to get worse.
+- Subscribe to subreddits and read them as one merged feed, or group them into custom feeds
+- Save posts. A saved post is downloaded (text, comments and pictures), so it opens with no connection
+- A private folder for saved posts you want kept apart, with an optional fingerprint or screen-lock on the folder or on the whole app
+- Hide posts, mute subreddits, keywords and sites, and block users
+- Posts you have opened can be greyed out or hidden
+- Back up everything to a file and restore it on another phone
 
-Open the official app on a fresh install and Reddit demands you log in before you can do anything. Tap a Reddit link from Discord or a tweet and a popup begs you to install the app. You already have it, doesn't matter, install it again. Try to read on the web instead and the page is buried under "Open in App" overlays, "Reddit Premium" splash screens, "create an account to continue", carousels of suggested communities you didn't ask for, ads stuffed between every other comment, and notification permission requests every time you breathe near the screen.
+**Looks and feel**
 
-I just wanted to read Reddit.
+- Eight themes, a custom accent colour and adjustable text size
+- If Android closes the app in the background, it reopens on the page and position you left
+- Updates are offered inside the app; no need to come back here
 
-No login. No account. No ads. No "are you sure you want to leave the app?" popups. No upsells. No carousels. No notifications. Just posts, comments, images, and the occasional cat picture. The thing Reddit used to feel like before someone in product decided every interaction needed to convert me into a daily-active-user statistic.
+## What it does not do
 
-So I built Persimmon. It reads Reddit the same way a web browser does, with no account, no login, and nothing to pay for. No ads, no telemetry, no premium tier, and no plans to add any. It costs me nothing to run; it costs you nothing to use.
+Persimmon never logs in to Reddit, so it cannot vote, comment, post or message. Subscriptions, saved posts and everything else you set up live only on your phone. If you need your Reddit account, this is not the app for it.
 
-It's read-only on purpose. You can browse, search, bookmark subs, save images, everything you'd want as a reader. Posting, voting, and commenting still happen on Reddit's site or app. That's deliberate: as long as Persimmon is just reading a public website, Reddit can't kill it the way they killed the others.
+## Privacy
 
-Persimmon ships as an Android APK you sideload from [GitHub Releases](https://github.com/BoundingBears/PersimmonReddit/releases). That means downloading the file, tapping it, and ignoring Android's scary "this isn't from the Play Store" warning (it's signed, just not by Google). **iOS and Play Store releases are on the roadmap.** Both are harder problems (Apple's $99/year tax, plus App Store and Play policies that have been hostile to anything Reddit-adjacent since 2023), but they're solvable, and I plan to get there.
+- No account, no analytics, no ads, no third-party SDKs
+- The app talks to Reddit, to whichever site a post's media comes from when you view it (YouTube, Twitch, an image host), and to GitHub once a day to check for a new release. Nothing else
+- Everything you save or subscribe to is stored on the device
+- The lock on the private folder is a privacy screen, not encryption. Private posts are left out of backups on purpose, so uninstalling the app removes them
 
-If you've been mourning Apollo, side-eyeing the official app, or just want a Reddit reader that doesn't try to sell you anything, try Persimmon. Read Reddit like it's 2014 again.
+## Will it keep working?
 
-🌸 *(Also: I'm still looking for an artist to draw Persimmon-chan, the app's mascot. If you'd like to contribute some art, DM me. There's a [Ko-fi link](https://ko-fi.com/boundingbears) if you'd rather just throw a coffee at the project.)*
+That is up to Reddit. Persimmon reads Reddit's public pages the way a logged-out web browser does, with no API key. In 2026 Reddit announced that it is closing access of that kind and ending public API access for third-party apps in March 2027, apart from apps with a written agreement.
 
----
+The app works today. It may stop without notice, and that is outside this project's control. The code already includes the official OAuth route, switched off, for the day Reddit grants this app access.
 
-## ✨ Features
+## Install
 
-- 🎨 **Material 3 UI** with several themes, a custom accent picker, and a reading-size slider
-- 📐 **Three feed layouts** (card, compact, gallery), switchable any time
-- 🍊 **Subscribed feed** that merges all your bookmarked subreddits into one
-- 🗂️ **Custom feeds** you build right from the side drawer: tap +, name one, tick the subreddits to include, done
-- 🔖 **Save posts, hide posts, and mute** by keyword, subreddit, or domain
-- 👁️ **Read tracking** that can grey out or hide posts you've already opened
-- 🧠 **Per-subreddit sort memory**, so each subreddit remembers how you last sorted it
-- ℹ️ **Subreddit info** with description and rules, one tap from any subreddit
-- 🔎 **Search** posts, subreddits, and users, and bookmark subs straight from the results
-- 🖼️ **In-app image and video viewer** with pinch-zoom, sound, and save / share
-- 🙈 **NSFW blur** with tap-to-reveal
-- 🔗 **Open Reddit links** shared or tapped from other apps, straight into Persimmon
-- 💾 **Backup and restore** your subs, saved posts, filters, and settings to a file
-- 💫 **Smooth navigation**: page transitions, scroll-position restore on back, skeleton loading, and cached feeds for instant relaunches
-- 🌱 **Privacy is policy**: public Reddit JSON, no account, no telemetry, never any ads
+1. Download the newest `.apk` from the [Releases page](https://github.com/BoundingBears/PersimmonReddit/releases/latest).
+2. Open it on your phone and allow the install. Android will warn that it did not come from the Play Store; the file is signed, just not distributed by Google.
+3. Later versions are offered inside the app and install over the top, keeping your data.
 
-## 🌿 Read-only, by design
+Android only for now. To let Reddit links open in Persimmon, turn it on in Settings, under "Open Reddit links in Persimmon".
 
-Persimmon does not log into Reddit. It cannot vote, comment, post, save, or subscribe on Reddit's side. "Subscribed" subreddits are stored locally on your device and used to build a personal merged feed via Reddit's standard public per-subreddit endpoints.
+Moving to a new phone: in Settings choose Export backup on the old phone, send the file across, then Import backup on the new one (or just tap the `.persimmon` file and pick Persimmon).
 
-If Reddit's authenticated features are something you need, this isn't the app for you. 💛
+## Build it yourself
 
-## 📦 Install
-
-Pre-built APKs live on the [Releases page](https://github.com/BoundingBears/PersimmonReddit/releases). Download the latest `.apk`, sideload, done. If you're upgrading, Android installs over the top and your bookmarked subs, custom feeds, theme, saved posts, and other prefs carry forward.
-
-To build from source, see [🌱 Development](#-development) below.
-
-## 🛠️ Stack
-
-- 💚 [SvelteKit](https://svelte.dev/) (SPA mode via `@sveltejs/adapter-static`) + TypeScript
-- ⚡ [Capacitor 8](https://capacitorjs.com/) for the Android wrapper
-- 🎬 [hls.js](https://github.com/video-dev/hls.js) plus MediaSource Extensions: Reddit serves video and audio as separate streams, so Persimmon stitches them back together in the browser for sound and a single set of controls
-- 📝 [marked](https://github.com/markedjs/marked) + [DOMPurify](https://github.com/cure53/DOMPurify) for comment and selftext rendering
-- 🔣 Material Symbols (web font) for icons
-- 🍊 A thin typed wrapper around Reddit's public `/<thing>.json` endpoints: browser-style request headers, warmed anonymous cookies so requests aren't blocked, alternate identities and an old.reddit.com fallback when Reddit pushes back, and per-shape parsers ([`src/lib/reddit/`](src/lib/reddit/))
-
-## 🌱 Development
-
-### Prerequisites
-
-- Node.js 22+
-- Android Studio (only for the device install step; the SPA itself builds with just Node)
-- A Java 17+ JDK (Android Studio's bundled JBR works fine)
-
-### Setup
+You need Node.js 22 or newer, a JDK 17 or newer, and the Android SDK (Android Studio brings the last two).
 
 ```sh
 git clone https://github.com/BoundingBears/PersimmonReddit.git
 cd PersimmonReddit
 npm install
+npm run install:android   # builds the web app, syncs it, installs a debug APK
 ```
 
-If your default `JAVA_HOME` is < 17 (AGP 8 requires JDK 17+), pin Studio's bundled JBR in your **user-level** Gradle config at `~/.gradle/gradle.properties` (create it if it doesn't exist). This file is per-user, lives outside any project, and never gets committed:
+If your default Java is older than 17, point Gradle at Android Studio's bundled one in `~/.gradle/gradle.properties`:
 
 ```properties
 # macOS
 org.gradle.java.home=/Applications/Android Studio.app/Contents/jbr/Contents/Home
-
-# Linux (path varies by install method)
-# org.gradle.java.home=/usr/lib/jvm/java-21-openjdk
-
 # Windows
 # org.gradle.java.home=C\:\\Program Files\\Android\\Android Studio\\jbr
 ```
 
-### ⚡ Web dev loop
+Other commands:
 
-```sh
-npm run dev
-```
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Runs the interface in a desktop browser at `localhost:5173`. Reddit may refuse requests from there; an emulator is the reliable way to see real data. |
+| `npm run test` | Unit tests: Reddit parsing against recorded responses, link handling, video embeds, session restore, the OAuth client. |
+| `npm run check` | Type-checks the project. |
 
-Open `http://localhost:5173`, use Chrome's device toolbar at phone width. The Reddit data layer talks to www.reddit.com directly (CORS works for unauthenticated JSON).
+### How it is built
 
-### 📱 On-device install
+- [SvelteKit](https://svelte.dev/) in single-page mode with TypeScript, wrapped for Android by [Capacitor 8](https://capacitorjs.com/)
+- [hls.js](https://github.com/video-dev/hls.js) for Reddit video, which arrives as separate picture and sound streams
+- [marked](https://github.com/markedjs/marked) and [DOMPurify](https://github.com/cure53/DOMPurify) to render post and comment text safely
+- A handful of small native plugins in [`android/app/src/main/java/com/persimmon/app/`](android/app/src/main/java/com/persimmon/app/): the Reddit fetcher, the in-app updater, the unlock prompt, copying an image to the clipboard, shrinking very large images for zooming
+- All Reddit access goes through [`src/lib/reddit/`](src/lib/reddit/)
 
-Plug in an Android phone with USB debugging enabled, or boot an emulator from Android Studio's Device Manager. Then:
+## Contributing
 
-```sh
-npm run install:android
-```
+Bug reports and ideas are welcome: [open an issue](https://github.com/BoundingBears/PersimmonReddit/issues). "This post renders wrong" with a link to the post is a perfect report. Pull requests are welcome too; for anything large, open an issue first so we can agree on the shape of it.
 
-That runs `vite build` → `npx cap sync android` → `./gradlew installDebug`. The APK lands on the device as **Persimmon**. 🍊
+## Support
 
-### 🧪 Tests
+Persimmon is free and will stay free, with no ads and no paid tier. If you would like to leave a tip: [ko-fi.com/boundingbears](https://ko-fi.com/boundingbears).
 
-```sh
-npm run test
-```
-
-Vitest exercises the parser layer against captured Reddit fixtures in [`src/lib/reddit/__fixtures__/`](src/lib/reddit/__fixtures__/), covering text posts, image posts, galleries, v.redd.it videos, crossposts, NSFW handling, deleted comments, and "more" stubs.
-
-### 🔍 Type-check
-
-```sh
-npm run check
-```
-
-## 🎨 Help wanted!
-
-Persimmon is a one-person project that would *love* some friends. If any of these is your jam, please open an issue or PR. You'd be making a real difference!
-
-### 🌸 Persimmon-chan artist *(highest priority, please come help!)*
-
-We need an artist to bring **Persimmon-chan** to life! She's the (currently imaginary) community mascot. Vibe-wise: a young, cheerful sprite associated with the persimmon fruit, with an orange-red palette, green leafy elements, friendly and a little bit magical. Anime-adjacent style is welcome but not required; cute pixel art, watercolor, and flat illustration are all interesting.
-
-- 📐 **Format:** SVG ideal (we can use her in-app and she'll scale forever), but PNG illustrations are equally welcome
-- 🎨 **Reference:** there isn't one yet, so your interpretation **is** the canon. Have fun with it.
-- 💌 **How:** open an issue with sketches, or jump straight to a PR with art in `assets/persimmon-chan/`
-- 🏆 **Reward:** you'd be the first community contributor to ship in this project. Permanent shoutout in the README and in the app's About page. Plus eternal gratitude. 💕
-
-### 🖼️ App icon designer
-
-The current launcher icon is two-tone diagonal stripes (functional, but it's not *her*). If you do flat vector icon work and want to give Persimmon a more on-brand launcher icon, especially one that reads cleanly at 48dp, please open an issue or PR with some sketches!
-
-The current foreground source is at [`assets/icon-foreground.svg`](assets/icon-foreground.svg). An older more-realistic fruit version is preserved at [`assets/icon-only-fruit.svg`](assets/icon-only-fruit.svg) for reference.
-
-### 🐛 Bugs, features, ideas
-
-Open an issue. Anything from "I wish there was a button for X" to "the comment renderer breaks on this specific post" is welcome.
-
-## 💕 Support the project
-
-If Persimmon makes your scrolling a little more pleasant and you'd like to leave a tip (no pressure, never paywalled, never ad-supported, and never on a "tier" that gates features):
-
-[☕ **ko-fi.com/boundingbears**](https://ko-fi.com/boundingbears)
-
-Donations help support continued development and (some day soon, with your help!) the official birth of Persimmon-chan. 🌸
-
-## 📜 License
+## License
 
 [MIT](LICENSE).
 
-Persimmon is not affiliated with, endorsed by, or sponsored by Reddit, Inc. It uses Reddit's publicly-accessible JSON feeds for personal, non-commercial use. The "Reddit" name and logo are trademarks of Reddit, Inc.
-
----
-
-<p align="center">🍊✨ Thanks for stopping by! ✨🍊</p>
+Persimmon is not affiliated with, endorsed by, or sponsored by Reddit, Inc. "Reddit" is a trademark of Reddit, Inc.

@@ -7,7 +7,7 @@ import { StatusBar, Style } from '@capacitor/status-bar';
 import { IS_NATIVE } from '$lib/utils/platform';
 import { prefs, DEFAULT_PREFS, type ThemeName } from './prefs';
 
-const LIGHT_THEMES = new Set<ThemeName>(['light', 'cream']);
+const LIGHT_THEMES = new Set<ThemeName>(['light', 'cream', 'persimmon']);
 
 function statusBarBg(theme: ThemeName): string {
 	// Match each theme's `--md-sys-color-surface` so the system status bar
@@ -19,6 +19,8 @@ function statusBarBg(theme: ThemeName): string {
 			return '#fef7ff';
 		case 'cream':
 			return '#fbf6e8';
+		case 'persimmon':
+			return '#fff8f4';
 		case 'twilight':
 			return '#1a1b3a';
 		case 'slate':
@@ -54,12 +56,28 @@ function applyTheme(theme: ThemeName, accent: string, fontScale: number): void {
 	}
 }
 
+// Android 15 and later draw every app edge to edge: the page already sits
+// behind the status bar and pads itself with env(safe-area-inset-top). A
+// non-zero inset is how the page can tell.
+function drawsEdgeToEdge(): boolean {
+	const probe = document.createElement('div');
+	probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top);visibility:hidden';
+	document.body.appendChild(probe);
+	const inset = probe.offsetHeight;
+	probe.remove();
+	return inset > 0;
+}
+
 export function initTheme(): void {
 	if (!browser) return;
-	if (IS_NATIVE) {
-		// Default behavior overlays the WebView under the status bar; we want
-		// the system to reserve the strip at the top so our app bar doesn't
-		// disappear into the clock/battery icons.
+	if (IS_NATIVE && !drawsEdgeToEdge()) {
+		// Older Android: ask the system to reserve the strip at the top so the
+		// app bar doesn't disappear into the clock and battery icons.
+		//
+		// Not on edge-to-edge systems. There the request changes nothing about
+		// the layout, but making it toggles window flags, and for a frame or
+		// two the system paints its own grey bar across the status bar: a
+		// visible flicker on every launch.
 		StatusBar.setOverlaysWebView({ overlay: false }).catch(() => undefined);
 	}
 	prefs.subscribe((v) => {

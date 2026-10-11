@@ -57,7 +57,7 @@
 	{#if loading}
 		Loading…
 	{:else if error}
-		Failed: {error} — tap to retry
+		Failed: {error}. Tap to retry.
 	{:else if remaining > 0}
 		Load {toLoadCount} more (of {stub.count})
 	{:else}

@@ -121,7 +121,7 @@
 				{/if}
 
 				{#if rules.length > 0}
-					<div class="rules-title">Rules</div>
+					<div class="rules-title section-label">Rules</div>
 					<ul class="rules">
 						{#each rules as rule, i (i)}
 							<li>
@@ -235,11 +235,6 @@
 		font-size: var(--type-secondary);
 	}
 	.rules-title {
-		font-size: var(--type-secondary);
-		font-weight: var(--weight-heading);
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
-		color: var(--md-sys-color-on-surface-variant);
 		margin: 16px 0 6px;
 	}
 	.rules {

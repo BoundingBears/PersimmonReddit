@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { openPost } from '$lib/stores/postLayer';
 	import Icon from '$lib/components/shared/Icon.svelte';
 	import RelativeTime from '$lib/components/shared/RelativeTime.svelte';
 	import { formatScore } from '$lib/utils/format';
@@ -21,7 +21,7 @@
 
 	function open() {
 		if (onOpen) onOpen(post);
-		else goto(`/comments/${post.id}`);
+		else openPost(post.id, post);
 	}
 </script>
 

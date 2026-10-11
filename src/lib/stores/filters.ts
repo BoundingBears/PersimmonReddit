@@ -60,6 +60,26 @@ export const filters = {
 	}
 };
 
+// Where filters apply.
+//
+// They hide posts in every feed that MIXES subreddits: the front page in any
+// sort, r/all, r/popular, multireddits, the subscribed feed and custom feeds.
+// They used to apply only to the last two, so muting a subreddit from the
+// front page hid nothing there, which is the one place people mute from.
+//
+// They do not apply inside a single subreddit the user opened on purpose: that
+// is a deliberate visit, and hiding its posts would just look broken.
+const MIXED_SUBS = new Set(['all', 'popular', 'home', 'friends', 'mod']);
+export function isMixedFeed(subreddit: string | undefined): boolean {
+	if (!subreddit) return true; // the front page
+	const s = subreddit.toLowerCase();
+	return MIXED_SUBS.has(s) || s.includes('+');
+}
+
+export function isMutedSub(subreddit: string | undefined, rules: FilterRules): boolean {
+	return !!subreddit && rules.subreddits.includes(subreddit.toLowerCase());
+}
+
 // Pure matcher — pass the current rules (e.g. `$filters`) so callers stay
 // reactive. Returns true when the post should be hidden by the filters.
 export function postMatchesFilters(post: Post, rules: FilterRules): boolean {

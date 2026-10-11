@@ -13,7 +13,6 @@
 	} from '$lib/stores/drawer';
 	import { subscribed } from '$lib/stores/subscribed';
 	import { hidden } from '$lib/stores/hidden';
-	import { saved } from '$lib/stores/saved';
 	import { groups } from '$lib/stores/groups';
 	import { openFeedEdit } from '$lib/stores/feedEdit';
 	import { installIOSOverlayPopstate } from '$lib/utils/iosOverlay';
@@ -77,7 +76,7 @@
 		</header>
 
 		<nav class="section">
-			<div class="section-title">Browse</div>
+			<div class="section-title section-label">Browse</div>
 			{#each builtins as b (b.href)}
 				<button class="row" onclick={() => go(b.href)}>
 					<Icon name={b.icon} size={20} />
@@ -93,7 +92,7 @@
 		</nav>
 
 		<nav class="section">
-			<div class="section-title">Subscribed</div>
+			<div class="section-title section-label">Subscribed</div>
 			{#if $subscribed.length === 0}
 				<div class="empty">No subscriptions yet. Bookmark subreddits from the Subs tab or any subreddit page.</div>
 			{:else}
@@ -111,7 +110,7 @@
 		</nav>
 
 		<nav class="section">
-			<div class="section-title with-action">
+			<div class="section-title section-label with-action">
 				<span>Custom feeds</span>
 				<button class="title-add" onclick={() => openFeedEdit(null)} aria-label="New feed">
 					<Icon name="add" size={18} />
@@ -142,7 +141,7 @@
 		</nav>
 
 		<nav class="section">
-			<div class="section-title">App</div>
+			<div class="section-title section-label">App</div>
 			<button class="row" onclick={() => go('/subreddits')}>
 				<Icon name="explore" size={20} />
 				<span>Discover subreddits</span>
@@ -150,10 +149,6 @@
 			<button class="row" onclick={() => go('/search')}>
 				<Icon name="search" size={20} />
 				<span>Search</span>
-			</button>
-			<button class="row" onclick={() => go('/saved')}>
-				<Icon name="bookmark" size={20} filled={$saved.size > 0} />
-				<span>Saved posts{$saved.size > 0 ? ` (${$saved.size})` : ''}</span>
 			</button>
 			{#if $hidden.size > 0}
 				<button class="row" onclick={() => go('/hidden')}>
@@ -224,11 +219,6 @@
 	}
 	.section-title {
 		padding: 8px 20px 4px;
-		font-size: var(--type-caption);
-		font-weight: var(--weight-heading);
-		letter-spacing: 0.5px;
-		text-transform: uppercase;
-		color: var(--md-sys-color-on-surface-variant);
 	}
 	.row {
 		display: flex;

@@ -104,12 +104,12 @@ export function restoreScrollAnchor(
 		raf = requestAnimationFrame(step);
 	}
 
-	// Two frames of grace first: SvelteKit applies its own scroll and the View
-	// Transition commits the new DOM in between, and correcting on top of a
-	// half-laid-out page just wastes the first correction.
-	raf = requestAnimationFrame(() => {
-		raf = requestAnimationFrame(step);
-	});
+	// Align once right now, before the first frame. By the time afterNavigate
+	// runs the new page's DOM is in place, and when SvelteKit had no stored
+	// offset for this entry (a session restored after a restart) it has just
+	// scrolled to the top: waiting a frame would paint that. Then keep
+	// correcting through the settle window.
+	step();
 	window.addEventListener('touchmove', stop, { passive: true });
 	window.addEventListener('wheel', stop, { passive: true });
 

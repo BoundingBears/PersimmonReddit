@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
         android:allowBackup="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -28,6 +30,42 @@
                 <data android:scheme="https" android:host="old.reddit.com" />
                 <data android:scheme="https" android:host="reddit.com" />
                 <data android:scheme="https" android:host="redd.it" />
+            </intent-filter>
+
+            <!-- Open a .persimmon backup from a file manager, to restore it.
+                 Two filters, because file managers hand a file over in two ways.
+
+                 Some include the file's name in the address they pass (the
+                 system Files app for anything in Documents, Files by Google).
+                 This first filter matches those by the .persimmon ending and
+                 nothing else. pathSuffix is Android 12+; the pathPattern lines
+                 are the older spelling, one per number of dots in the path,
+                 because that pattern language cannot skip past a dot. -->
+            <intent-filter android:label="Restore Persimmon backup">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:host="*" />
+                <data android:mimeType="*/*" />
+                <data android:pathSuffix=".persimmon" />
+                <data android:pathPattern=".*\\.persimmon" />
+                <data android:pathPattern=".*\\..*\\.persimmon" />
+                <data android:pathPattern=".*\\..*\\..*\\.persimmon" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.persimmon" />
+            </intent-filter>
+            <!-- Others pass an address with no name in it (Downloads, a file
+                 received over Quick Share, an email attachment), and all the
+                 system knows is "a file of no known type". The only way to be
+                 offered for those is to accept that whole type, which is why
+                 unrelated apps show up in the same list. The app checks what it
+                 is given and says so if it is not a backup. -->
+            <intent-filter android:label="Restore Persimmon backup">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="application/octet-stream" />
             </intent-filter>
 
             <!-- "Share to Persimmon" — receive a URL shared from another app's

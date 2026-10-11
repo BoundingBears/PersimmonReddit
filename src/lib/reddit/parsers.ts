@@ -89,7 +89,58 @@ interface RawMore {
 
 // ---------- Posts ----------
 
-function parsePreview(raw: any): MediaImage | undefined {
+// Width, in device pixels, that an inline image actually needs. Reddit's
+// rendition ladder tops out at 1080, so there is nothing to gain past that.
+const SCREEN_TARGET_W =
+	typeof window !== 'undefined' && window.innerWidth
+		? Math.min(1080, Math.ceil(window.innerWidth * (window.devicePixelRatio || 1)))
+		: 1080;
+
+interface Rendition {
+	url: string;
+	width: number;
+	height: number;
+}
+
+/**
+ * The smallest rendition that still fills the screen, else the original.
+ *
+ * Reddit publishes every image as a ladder of widths (108 ... 1080) next to
+ * the full-size source. The app used the source everywhere, and sources are
+ * routinely 12 to 60 megapixels: a sample of 179 feed posts came to 1,178 MP
+ * of source against 167 MP of screen-sized renditions. That is megabytes of
+ * download per card and enough decoded bitmap to get the WebView's renderer
+ * killed for memory. The original is still used where it matters: the
+ * zoomable viewer and "save image".
+ */
+export function pickRendition(
+	source: Rendition | undefined,
+	ladder: Rendition[] | undefined,
+	target: number = SCREEN_TARGET_W
+): Rendition | undefined {
+	if (!source?.url) return undefined;
+	let best: Rendition | undefined;
+	for (const r of ladder ?? []) {
+		if (!r?.url || !(r.width >= target)) continue;
+		if (!best || r.width < best.width) best = r;
+	}
+	// Nothing on the ladder is wide enough: the source is the largest there is,
+	// or it is small enough that it has no renditions above it.
+	return best && best.width < source.width ? best : source;
+}
+
+function parsePreview(raw: any, target?: number): MediaImage | undefined {
+	const image = raw?.preview?.images?.[0];
+	const pick = pickRendition(image?.source, image?.resolutions, target);
+	if (!pick) return undefined;
+	return { url: decodeEntities(pick.url), width: pick.width ?? 0, height: pick.height ?? 0 };
+}
+
+// A grid tile is half the screen wide. Giving it the full-width picture meant
+// decoding and drawing four times the pixels it can show, for every tile.
+const TILE_TARGET_W = Math.ceil(SCREEN_TARGET_W / 2);
+
+function parsePreviewSource(raw: any): MediaImage | undefined {
 	const src = raw?.preview?.images?.[0]?.source;
 	if (!src?.url) return undefined;
 	return { url: decodeEntities(src.url), width: src.width ?? 0, height: src.height ?? 0 };
@@ -132,9 +183,20 @@ function parseGallery(raw: any): GalleryItem[] | undefined {
 		// looks like "image/jpg" / "image/gif".
 		const url = m.s.gif ?? m.s.u ?? m.s.mp4;
 		if (!url) continue;
+		// Stills get a screen-sized rendition for the inline carousel (`m.p` is
+		// the ladder, in Reddit's u/x/y spelling). Animated items have no
+		// renditions that animate, so they keep their one URL.
+		let display = url;
+		if (!m.s.gif && m.s.u) {
+			const ladder = Array.isArray(m.p)
+				? m.p.map((p: any) => ({ url: p?.u, width: p?.x ?? 0, height: p?.y ?? 0 }))
+				: [];
+			display = pickRendition({ url: m.s.u, width: m.s.x ?? 0, height: m.s.y ?? 0 }, ladder)?.url ?? url;
+		}
 		out.push({
 			id: it.media_id,
-			url: decodeEntities(url),
+			url: decodeEntities(display),
+			fullUrl: decodeEntities(url),
 			width: m.s.x ?? 0,
 			height: m.s.y ?? 0,
 			caption: it.caption ?? undefined
@@ -144,13 +206,15 @@ function parseGallery(raw: any): GalleryItem[] | undefined {
 }
 
 function parseEmbed(raw: any) {
-	const e = raw?.media_embed ?? raw?.secure_media_embed;
+	// Not `a ?? b`: Reddit sends `media_embed: {}` when it has nothing, and an
+	// empty object is not nullish, so the secure variant was never consulted.
+	const e = raw?.secure_media_embed?.content ? raw.secure_media_embed : raw?.media_embed;
 	if (!e?.content) return undefined;
 	return {
 		html: decodeEntities(e.content),
 		width: e.width ?? 0,
 		height: e.height ?? 0,
-		provider: raw?.media?.type
+		provider: raw?.media?.type ?? raw?.secure_media?.type
 	};
 }
 
@@ -188,6 +252,8 @@ export function parsePost(raw: any): Post {
 		sendReplies: !!raw.send_replies,
 		thumbnail,
 		preview: parsePreview(raw),
+		previewTile: parsePreview(raw, TILE_TARGET_W),
+		previewSource: parsePreviewSource(raw),
 		selftextHtml: raw.selftext_html ? decodeEntities(raw.selftext_html) : undefined,
 		selftext: raw.selftext || undefined
 	};

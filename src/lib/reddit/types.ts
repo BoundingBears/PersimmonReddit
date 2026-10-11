@@ -21,7 +21,8 @@ export interface MediaVideo {
 
 export interface GalleryItem {
 	id: string;
-	url: string;
+	url: string; // screen-sized rendition, for showing inline
+	fullUrl?: string; // the original, for the zoomable viewer
 	width: number;
 	height: number;
 	caption?: string;
@@ -57,7 +58,9 @@ export interface Post {
 	archived: boolean;
 	sendReplies: boolean;
 	thumbnail?: string; // never the literal "nsfw"/"spoiler"/"default"
-	preview?: MediaImage; // best-effort preview image
+	preview?: MediaImage; // screen-sized rendition, for showing inline
+	previewTile?: MediaImage; // half-screen rendition, for the two-column grid
+	previewSource?: MediaImage; // Reddit's full-size original of the same picture
 	selftextHtml?: string;
 	selftext?: string;
 	image?: MediaImage;

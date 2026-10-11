@@ -29,8 +29,15 @@
 		};
 	});
 
-	// Show the latest entry's version in the header; list every entry's items.
+	// The sheet is a headline for this version, not the project's history: it
+	// shows the newest entry only. Older ones sit behind a toggle, collapsed
+	// again each time the sheet opens.
 	let latest = $derived(CHANGELOG[0]);
+	let earlier = $derived(CHANGELOG.slice(1));
+	let showEarlier = $state(false);
+	$effect(() => {
+		if (!$whatsNewOpen) showEarlier = false;
+	});
 
 	function slideUp(_node: HTMLElement, { duration = 240 } = {}) {
 		return {
@@ -50,14 +57,27 @@
 			<div class="version">Persimmon v{latest.version}</div>
 		</header>
 		<div class="body">
-			{#each CHANGELOG as entry (entry.version)}
-				{#if entry.title}<div class="entry-title">{entry.title}</div>{/if}
-				<ul class="items">
-					{#each entry.items as item (item)}
-						<li>{item}</li>
+			<ul class="items">
+				{#each latest.items as item (item)}
+					<li>{item}</li>
+				{/each}
+			</ul>
+			{#if earlier.length > 0}
+				<button class="earlier-toggle" onclick={() => (showEarlier = !showEarlier)} aria-expanded={showEarlier}>
+					<span>Earlier versions</span>
+					<Icon name={showEarlier ? 'expand_less' : 'expand_more'} size={18} />
+				</button>
+				{#if showEarlier}
+					{#each earlier as entry (entry.version)}
+						<div class="entry-title">v{entry.version}</div>
+						<ul class="items compact">
+							{#each entry.items as item (item)}
+								<li>{item}</li>
+							{/each}
+						</ul>
 					{/each}
-				</ul>
-			{/each}
+				{/if}
+			{/if}
 		</div>
 		<button class="done" onclick={closeWhatsNew}>
 			<Icon name="check" size={18} />
@@ -114,12 +134,30 @@
 	}
 	.body {
 		overflow-y: auto;
-		padding: 4px 20px 8px;
+		padding: 14px 20px 8px;
 	}
 	.entry-title {
-		font-size: var(--type-body);
+		font-size: var(--type-meta);
 		font-weight: var(--weight-heading);
-		margin: 12px 0 6px;
+		color: var(--md-sys-color-on-surface-variant);
+		margin: 12px 0 4px;
+	}
+	.earlier-toggle {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		margin-top: 14px;
+		padding: 6px 0;
+		font: inherit;
+		font-size: var(--type-secondary);
+		color: var(--md-sys-color-on-surface-variant);
+	}
+	.items.compact {
+		gap: 4px;
+	}
+	.items.compact li {
+		font-size: var(--type-secondary);
+		color: var(--md-sys-color-on-surface-variant);
 	}
 	.items {
 		margin: 0;

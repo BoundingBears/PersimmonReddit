@@ -1,7 +1,7 @@
 <script lang="ts">
 	import EmptyState from '$lib/components/shared/EmptyState.svelte';
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { openPost as openPostLayer } from '$lib/stores/postLayer';
 	import TopAppBar from '$lib/components/chrome/TopAppBar.svelte';
 	import Icon from '$lib/components/shared/Icon.svelte';
 	import RelativeTime from '$lib/components/shared/RelativeTime.svelte';
@@ -41,7 +41,7 @@
 	}
 
 	function openPost(entry: HiddenEntry) {
-		goto(`/comments/${entry.id}`);
+		openPostLayer(entry.id);
 	}
 
 	function clearAll() {

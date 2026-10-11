@@ -6,12 +6,13 @@
 	import TopAppBar from '$lib/components/chrome/TopAppBar.svelte';
 	import FeedList from '$lib/components/feed/FeedList.svelte';
 	import Dropdown from '$lib/components/shared/Dropdown.svelte';
-	import Icon from '$lib/components/shared/Icon.svelte';
 	import { getSubmissions, getMergedSubmissions } from '$lib/reddit/endpoints';
 	import { clearCache } from '$lib/reddit/client';
 	import { prefs, type HomeView } from '$lib/stores/prefs';
 	import { subscribed, subscribedReady } from '$lib/stores/subscribed';
 	import { getFeedSnapshot, saveFeedSnapshot } from '$lib/stores/feedSnapshot';
+	import { registerLiveSaver } from '$lib/stores/session';
+	import { pushToast } from '$lib/stores/toast';
 	import { captureScrollAnchor, restoreScrollAnchor } from '$lib/utils/scrollRestore';
 	import type { Listing, Post, Sort } from '$lib/reddit/types';
 
@@ -184,22 +185,33 @@
 	// the document height has collapsed and the browser has already clamped
 	// window.scrollY to 0 — so a save here would always store 0.
 	// beforeNavigate runs while the page is still mounted and scrolled.
-	beforeNavigate(() => {
+	function saveSnapshot() {
 		if (typeof window === 'undefined' || posts.length === 0) return;
-		cancelRestore?.();
 		saveFeedSnapshot(SNAPSHOT_KEY, {
 			posts,
 			after,
 			sort: $prefs.homeView,
 			...captureScrollAnchor()
 		});
+	}
+	beforeNavigate(() => {
+		cancelRestore?.();
+		saveSnapshot();
 	});
+	// Also capture the feed while it is the page on screen, so it survives the
+	// app being killed in the background (see session.ts).
+	onMount(() => registerLiveSaver(saveSnapshot));
 
+	// The posts already on screen stay there until the new ones arrive. If
+	// they never do, they are still better than an empty page.
 	async function refresh() {
 		clearCache();
-		posts = [];
-		after = null;
 		await load(true, true);
+		if (error && posts.length > 0) {
+			error = null;
+			pushToast("Couldn't refresh. Showing what was already loaded.", { key: 'refresh-failed' });
+			return;
+		}
 		window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
 	}
 
@@ -213,7 +225,6 @@
 <TopAppBar title="Persimmon" {subtitle}>
 	{#snippet actions()}
 		<Dropdown bind:value={$prefs.homeView} options={homeViewOptions} label="Feed" />
-		<a href="/settings" class="iconbtn" aria-label="Settings"><Icon name="settings" size={22} /></a>
 	{/snippet}
 </TopAppBar>
 
@@ -233,7 +244,8 @@
 		{posts}
 		{loading}
 		hasMore={after !== null}
-		applyFilters={$prefs.homeView === 'subscribed'}
+		applyFilters
+		anchorId={snap?.anchorId}
 		{staleAt}
 		{error}
 		onLoadMore={() => load(false)}
@@ -241,17 +253,3 @@
 	/>
 {/if}
 
-<style>
-	.iconbtn {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 40px;
-		height: 40px;
-		border-radius: 20px;
-		color: var(--md-sys-color-on-surface);
-	}
-	.iconbtn:active {
-		background: var(--md-sys-color-surface-container-highest);
-	}
-</style>

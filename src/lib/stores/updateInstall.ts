@@ -63,6 +63,6 @@ export async function startUpdate(explicit?: UpdateInfo | null): Promise<void> {
 	}
 
 	installState.set(null);
-	pushToast("Couldn't install automatically — opening the release page", { duration: 4000 });
+	pushToast("Couldn't install automatically. Opening the release page.", { duration: 4000 });
 	await fallbackToBrowser(info);
 }

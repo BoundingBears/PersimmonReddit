@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 and older. The private folder (its list and the offline copies
+     of its posts) lives under files/private/ and must not leave the phone in a
+     cloud backup. Everything else is backed up as before. -->
+<full-backup-content>
+    <exclude domain="file" path="private/" />
+</full-backup-content>

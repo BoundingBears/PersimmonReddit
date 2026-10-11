@@ -10,50 +10,47 @@
 	}
 
 	let { items, nsfw = false }: Props = $props();
-	let index = $state(0);
 	let revealed = $state(false);
 	let blurred = $derived(nsfw && $prefs.blurNsfw && !revealed);
+	let cover = $derived(items[0]);
 
-	function prev() {
-		index = (index - 1 + items.length) % items.length;
-	}
-	function next() {
-		index = (index + 1) % items.length;
-	}
-
-	// Open the fullscreen viewer at the image currently in view, handing it the
-	// whole gallery so pinch-zoom and swipe-between work there.
+	// The post shows the first picture and how many there are. The rest are
+	// looked at in the fullscreen viewer, which pages up and down; there is no
+	// second, sideways way of flipping through them here.
 	function openViewer() {
 		openGallery(
-			items.map((it) => ({ url: it.url, kind: 'image' as const, alt: it.caption ?? '', caption: it.caption })),
-			index
+			items.map((it) => ({
+				url: it.fullUrl ?? it.url,
+				preview: it.url,
+				pixels: it.width * it.height,
+				kind: 'image' as const,
+				alt: it.caption ?? '',
+				caption: it.caption
+			})),
+			0
 		);
 	}
 </script>
 
 <div class="wrap" class:blurred>
-	{#each items as item, i}
-		<img
-			class:active={i === index}
-			src={item.url}
-			alt={item.caption ?? ''}
-			loading={i === 0 ? 'eager' : 'lazy'}
-			referrerpolicy="no-referrer"
-		/>
-	{/each}
+	{#if cover}
+		<img src={cover.url} alt={cover.caption ?? ''} referrerpolicy="no-referrer" />
+	{/if}
 
 	{#if !blurred}
-		<button class="open-hit" onclick={openViewer} aria-label="Open image fullscreen"></button>
+		<button
+			class="open-hit"
+			onclick={openViewer}
+			aria-label={items.length > 1 ? `Open gallery of ${items.length} images` : 'Open image fullscreen'}
+		></button>
 	{/if}
 
 	{#if items.length > 1}
-		<button class="nav left" onclick={prev} aria-label="Previous"><Icon name="chevron_left" size={28} /></button>
-		<button class="nav right" onclick={next} aria-label="Next"><Icon name="chevron_right" size={28} /></button>
-		<div class="counter">{index + 1} / {items.length}</div>
+		<div class="count"><Icon name="collections" size={16} /> {items.length}</div>
 	{/if}
 
-	{#if items[index]?.caption}
-		<div class="caption">{items[index].caption}</div>
+	{#if cover?.caption}
+		<div class="caption">{cover.caption}</div>
 	{/if}
 
 	{#if blurred}
@@ -71,15 +68,12 @@
 		min-height: 60vw;
 	}
 	img {
-		display: none;
+		display: block;
 		max-width: 100%;
 		max-height: 80vh;
 		object-fit: contain;
 	}
-	img.active {
-		display: block;
-	}
-	.blurred img.active {
+	.blurred img {
 		filter: blur(48px);
 	}
 	.open-hit {
@@ -89,33 +83,17 @@
 		background: none;
 		cursor: zoom-in;
 	}
-	.nav {
-		position: absolute;
-		top: 50%;
-		transform: translateY(-50%);
-		width: 40px;
-		height: 40px;
-		border-radius: 20px;
-		background: rgba(0, 0, 0, 0.5);
-		color: #fff;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		z-index: 2;
-	}
-	.nav.left {
-		left: 8px;
-	}
-	.nav.right {
-		right: 8px;
-	}
-	.counter {
+	/* Same badge a gallery carries on its feed card. */
+	.count {
 		position: absolute;
 		top: 8px;
 		right: 8px;
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
 		padding: 4px 8px;
 		border-radius: 12px;
-		background: rgba(0, 0, 0, 0.5);
+		background: rgba(0, 0, 0, 0.6);
 		color: #fff;
 		font-size: var(--type-meta);
 		z-index: 2;

@@ -14,6 +14,7 @@
 import { registerPlugin } from '@capacitor/core';
 import { Directory, Filesystem } from '@capacitor/filesystem';
 import { IS_NATIVE } from './platform';
+import { expectAbsence } from '$lib/stores/lock';
 
 interface ApkInstallerPlugin {
 	// Has the user granted "install unknown apps" for Persimmon? (API 26+)
@@ -97,6 +98,7 @@ export async function downloadAndInstall(
 		}
 
 		onStage({ stage: 'installing' });
+		expectAbsence();
 		await ApkInstaller.install({ path: result.path });
 		onStage({ stage: 'done' });
 		return true;
@@ -116,6 +118,7 @@ export async function downloadAndInstall(
 
 export async function openInstallPermissionSettings(): Promise<void> {
 	try {
+		expectAbsence();
 		await ApkInstaller.openInstallSettings();
 	} catch (e) {
 		console.error('could not open install settings', e);

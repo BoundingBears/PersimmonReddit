@@ -295,7 +295,13 @@
 		showControls();
 	}
 
-	function onTapVideo() {
+	// A tap anywhere on the player shows or hides the controls: on the picture
+	// or on the black bars beside it. The handler used to sit on the <video>
+	// element alone, which is only as big as the picture, so on a portrait
+	// video (or any video in fullscreen) most of the player ignored taps.
+	function onTapPlayer(e: MouseEvent) {
+		// The controls answer their own taps.
+		if ((e.target as Element).closest('.bar, .center')) return;
 		if (controlsShown) controlsShown = false;
 		else showControls();
 	}
@@ -385,15 +391,14 @@
 	});
 </script>
 
-<div class="wrap" bind:this={wrapEl} class:fs={isFullscreen}>
-	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -- the play, mute and fullscreen buttons inside are the keyboard route; this is the touch shortcut for showing them. -->
+<div class="wrap" bind:this={wrapEl} class:fs={isFullscreen} onclick={onTapPlayer}>
 	<video
 		bind:this={videoEl}
 		{poster}
 		playsinline
 		preload="metadata"
 		loop={video.isGif}
-		onclick={onTapVideo}
 		onplay={() => {
 			playing = true;
 			scheduleHide();

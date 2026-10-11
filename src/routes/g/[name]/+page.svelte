@@ -11,6 +11,7 @@
 	import { clearCache } from '$lib/reddit/client';
 	import { groups, groupsReady } from '$lib/stores/groups';
 	import { getFeedSnapshot, saveFeedSnapshot } from '$lib/stores/feedSnapshot';
+	import { registerLiveSaver } from '$lib/stores/session';
 	import { captureScrollAnchor, restoreScrollAnchor } from '$lib/utils/scrollRestore';
 	import type { Post, Sort } from '$lib/reddit/types';
 
@@ -111,11 +112,15 @@
 
 	// beforeNavigate, not onDestroy — onDestroy runs after the DOM is gone and
 	// scrollY has already been clamped to 0.
-	beforeNavigate(() => {
+	function saveSnapshot() {
 		if (typeof window === 'undefined' || posts.length === 0) return;
-		cancelRestore?.();
 		saveFeedSnapshot(snapshotKey, { posts, after: null, sort, ...captureScrollAnchor() });
+	}
+	beforeNavigate(() => {
+		cancelRestore?.();
+		saveSnapshot();
 	});
+	onMount(() => registerLiveSaver(saveSnapshot));
 
 	async function refresh() {
 		clearCache();
@@ -151,7 +156,7 @@
 {:else if error}
 	<ErrorState message="Couldn't load this group ({error})." onRetry={() => load(true)} />
 {:else}
-	<FeedList {posts} {loading} hasMore={false} applyFilters {staleAt} onRefresh={refresh} />
+	<FeedList {posts} {loading} hasMore={false} applyFilters {staleAt} onRefresh={refresh} anchorId={initialSnap?.anchorId} />
 {/if}
 
 <style>

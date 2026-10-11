@@ -9,7 +9,7 @@
 // Optional `action`: a single button shown alongside the message (e.g.
 // "Hidden — UNDO"). Tapping it runs the callback and dismisses the toast.
 
-import { writable } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 
 export interface ToastAction {
 	label: string;
@@ -95,4 +95,10 @@ export function dismissToast(id: number): void {
 		timers.delete(id);
 	}
 	toasts.update((list) => list.filter((toast) => toast.id !== id));
+}
+
+/** Dismiss whichever toast carries this key, if one is showing. */
+export function dismissToastByKey(key: string): void {
+	const hit = get(toasts).find((t) => t.key === key);
+	if (hit) dismissToast(hit.id);
 }

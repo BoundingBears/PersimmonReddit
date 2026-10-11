@@ -70,7 +70,9 @@
 	src: url('/fonts/material-symbols-rounded.woff2') format('woff2');
 }
 
-/* M3 design tokens. Values switch via [data-theme] on <html>. */
+/* M3 design tokens. Values switch via [data-theme] on <html>. The same
+   attribute on any other element themes just that element, which is how the
+   theme picker in Settings shows each theme in its own colours. */
 
 :root {
 	color-scheme: dark;
@@ -109,6 +111,16 @@
 	   reads fine on every theme; promote to per-theme if it ever needs tuning. */
 	--md-sys-color-success: #3f7d49;
 	--md-sys-color-on-success: #ffffff;
+	/* The tinted fill behind a selected option or a secondary button. Several
+	   components used these two tokens while nothing defined them, so those
+	   fills were silently transparent. Mixed from each theme's own primary, so
+	   they follow the theme and a custom accent without a line per theme. */
+	--md-sys-color-secondary-container: color-mix(
+		in srgb,
+		var(--md-sys-color-primary) 24%,
+		var(--md-sys-color-surface-container-high)
+	);
+	--md-sys-color-on-secondary-container: var(--md-sys-color-on-surface);
 }
 
 /* Keyboard / switch-control focus indication. The app had none — this covers
@@ -118,7 +130,8 @@
 	outline-offset: -2px;
 }
 
-:root[data-theme='dark'] {
+:root[data-theme='dark'],
+[data-theme='dark'] {
 	--md-sys-color-primary: #d0bcff;
 	--md-sys-color-on-primary: #381e72;
 	--md-sys-color-primary-container: #4f378b;
@@ -143,7 +156,8 @@
 	--md-sys-color-inverse-primary: #6750a4;
 }
 
-:root[data-theme='light'] {
+:root[data-theme='light'],
+[data-theme='light'] {
 	color-scheme: light;
 	--md-sys-color-primary: #6750a4;
 	--md-sys-color-on-primary: #ffffff;
@@ -169,12 +183,16 @@
 	--md-sys-color-inverse-primary: #d0bcff;
 }
 
-:root[data-theme='amoled'] {
+/* Black: true black for OLED screens. It used to share Dark's lavender and
+   purple-tinted greys, which made the two all but indistinguishable; it now
+   has neutral greys and a teal of its own. */
+:root[data-theme='amoled'],
+[data-theme='amoled'] {
 	color-scheme: dark;
-	--md-sys-color-primary: #d0bcff;
-	--md-sys-color-on-primary: #381e72;
-	--md-sys-color-primary-container: #4f378b;
-	--md-sys-color-on-primary-container: #eaddff;
+	--md-sys-color-primary: #5ed4e4;
+	--md-sys-color-on-primary: #00363d;
+	--md-sys-color-primary-container: #004f58;
+	--md-sys-color-on-primary-container: #a8eefa;
 	--md-sys-color-surface: #000000;
 	--md-sys-color-surface-dim: #000000;
 	--md-sys-color-surface-bright: #1a1a1a;
@@ -183,20 +201,21 @@
 	--md-sys-color-surface-container: #121212;
 	--md-sys-color-surface-container-high: #1a1a1a;
 	--md-sys-color-surface-container-highest: #242424;
-	--md-sys-color-on-surface: #e6e0e9;
-	--md-sys-color-on-surface-variant: #cac4d0;
-	--md-sys-color-outline: #938f99;
+	--md-sys-color-on-surface: #e9e9e9;
+	--md-sys-color-on-surface-variant: #c2c6c8;
+	--md-sys-color-outline: #8c9193;
 	--md-sys-color-outline-variant: #2a2a2a;
 	--md-sys-color-error: #f2b8b5;
 	--md-sys-color-on-error: #601410;
 	--md-sys-color-scrim: #000000;
-	--md-sys-color-inverse-surface: #e6e0e9;
+	--md-sys-color-inverse-surface: #e9e9e9;
 	--md-sys-color-inverse-on-surface: #000000;
-	--md-sys-color-inverse-primary: #6750a4;
+	--md-sys-color-inverse-primary: #006876;
 }
 
 /* Twilight — blurple-navy dark, Discord-esque */
-:root[data-theme='twilight'] {
+:root[data-theme='twilight'],
+[data-theme='twilight'] {
 	color-scheme: dark;
 	--md-sys-color-primary: #7289da;
 	--md-sys-color-on-primary: #ffffff;
@@ -223,7 +242,8 @@
 }
 
 /* Cream — warm sepia/paper light */
-:root[data-theme='cream'] {
+:root[data-theme='cream'],
+[data-theme='cream'] {
 	color-scheme: light;
 	--md-sys-color-primary: #a16d3c;
 	--md-sys-color-on-primary: #ffffff;
@@ -249,8 +269,38 @@
 	--md-sys-color-inverse-primary: #f0d9b8;
 }
 
+/* Persimmon: the app's own colours. A warm white with the orange of the
+   fruit on the icon. */
+:root[data-theme='persimmon'],
+[data-theme='persimmon'] {
+	color-scheme: light;
+	--md-sys-color-primary: #c44f17;
+	--md-sys-color-on-primary: #ffffff;
+	--md-sys-color-primary-container: #ffdbcc;
+	--md-sys-color-on-primary-container: #3a0b00;
+	--md-sys-color-surface: #fff8f4;
+	--md-sys-color-surface-dim: #e9d6cc;
+	--md-sys-color-surface-bright: #fff8f4;
+	--md-sys-color-surface-container-lowest: #ffffff;
+	--md-sys-color-surface-container-low: #fef1ea;
+	--md-sys-color-surface-container: #fbebe2;
+	--md-sys-color-surface-container-high: #f6e4da;
+	--md-sys-color-surface-container-highest: #f0ddd2;
+	--md-sys-color-on-surface: #231914;
+	--md-sys-color-on-surface-variant: #53433b;
+	--md-sys-color-outline: #85736a;
+	--md-sys-color-outline-variant: #d8c2b8;
+	--md-sys-color-error: #ba1a1a;
+	--md-sys-color-on-error: #ffffff;
+	--md-sys-color-scrim: #000000;
+	--md-sys-color-inverse-surface: #382e29;
+	--md-sys-color-inverse-on-surface: #ffede5;
+	--md-sys-color-inverse-primary: #ffb596;
+}
+
 /* Slate — vibrant dark purple/pink (formerly "Dracula") */
-:root[data-theme='slate'] {
+:root[data-theme='slate'],
+[data-theme='slate'] {
 	color-scheme: dark;
 	--md-sys-color-primary: #ff79c6;
 	--md-sys-color-on-primary: #282a36;
@@ -277,7 +327,8 @@
 }
 
 /* Sunset — warm dark, peach & maroon */
-:root[data-theme='sunset'] {
+:root[data-theme='sunset'],
+[data-theme='sunset'] {
 	color-scheme: dark;
 	--md-sys-color-primary: #f7a072;
 	--md-sys-color-on-primary: #4a200d;
@@ -322,6 +373,29 @@ body {
 	box-sizing: border-box;
 }
 
+/* The one section label. Settings groups, the drawer, the Subs lists and the
+   subreddit info sheet each had their own version of this: four sizes, two
+   colours, two letter-spacings for the same job. Spacing stays with the
+   component; the look lives here. `.quiet` is a sub-heading inside a section. */
+.section-label {
+	margin: 0;
+	font-size: var(--type-meta);
+	font-weight: var(--weight-heading);
+	letter-spacing: 0.8px;
+	text-transform: uppercase;
+	color: var(--md-sys-color-primary);
+}
+.section-label.quiet {
+	color: var(--md-sys-color-on-surface-variant);
+}
+
+/* While the back stack is being rebuilt after a restart (+layout.svelte), keep
+   the intermediate pages out of sight. */
+html[data-restoring='true'] .app {
+	visibility: hidden;
+}
+
+
 a {
 	color: inherit;
 	text-decoration: none;
@@ -345,6 +419,19 @@ button {
 	animation-duration: 220ms;
 	animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
 	animation-fill-mode: both;
+}
+
+/* The bottom bar is not part of any page. It is lifted out of the page
+   transition into a group of its own (BottomNav.svelte names it) and held
+   still, so pages slide or fade above a bar that never moves. */
+::view-transition-group(bottom-nav) {
+	animation: none;
+}
+::view-transition-old(bottom-nav) {
+	display: none;
+}
+::view-transition-new(bottom-nav) {
+	animation: none;
 }
 
 [data-nav-dir='forward']::view-transition-old(root) {

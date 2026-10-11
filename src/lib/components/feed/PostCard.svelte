@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { openPost } from '$lib/stores/postLayer';
 	import Icon from '$lib/components/shared/Icon.svelte';
 	import RelativeTime from '$lib/components/shared/RelativeTime.svelte';
 	import SubredditChip from '$lib/components/shared/SubredditChip.svelte';
@@ -37,7 +37,7 @@
 	function open(e?: Event) {
 		if (e && (e.target as HTMLElement | null)?.closest('a')) return;
 		if (onOpen) onOpen(post);
-		else goto(`/comments/${post.id}`);
+		else openPost(post.id, post);
 	}
 
 	function onShare(e: MouseEvent) {
@@ -109,7 +109,7 @@
 			{#if blur}
 				<button class="reveal" onclick={reveal}>Tap to reveal</button>
 			{/if}
-			{#if post.kind === 'video' && !blur}
+			{#if (post.kind === 'video' || post.kind === 'embed') && !blur}
 				<div class="play"><Icon name="play_arrow" size={48} /></div>
 			{/if}
 			{#if post.kind === 'gallery'}

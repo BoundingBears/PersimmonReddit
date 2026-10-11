@@ -5,11 +5,14 @@
 	// opening a post doesn't flash a blank screen before content arrives.
 	interface Props {
 		comments?: number;
+		// The post itself is already on screen; only stand in for its comments.
+		commentsOnly?: boolean;
 	}
-	let { comments = 4 }: Props = $props();
+	let { comments = 4, commentsOnly = false }: Props = $props();
 </script>
 
 <div class="wrap" aria-hidden="true">
+	{#if !commentsOnly}
 	<div class="post">
 		<div class="meta">
 			<Skeleton width={90} height={12} radius={6} />
@@ -24,6 +27,7 @@
 			<Skeleton width={56} height={16} radius={8} />
 		</div>
 	</div>
+	{/if}
 
 	<div class="comments">
 		{#each Array(comments) as _, i (i)}

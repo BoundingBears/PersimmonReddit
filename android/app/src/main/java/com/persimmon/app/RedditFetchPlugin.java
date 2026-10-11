@@ -3,8 +3,10 @@ package com.persimmon.app;
 import android.annotation.SuppressLint;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.ViewGroup;
 import android.webkit.CookieManager;
+import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -46,6 +48,13 @@ public class RedditFetchPlugin extends Plugin {
 	private static final long WARMUP_TIMEOUT_MS = 12_000;
 	private static final int MAX_CONCURRENT = 4;
 	private static final String WARMUP_URL = "https://www.reddit.com/";
+	private static final String BLANK_URL = "about:blank";
+	// How long the warm-up page stays loaded after it has done its job. Long
+	// enough for Reddit's JS challenge to finish setting cookies.
+	private static final long RELEASE_DELAY_MS = 20_000;
+	// A forced re-warm waits for navigation to go quiet for this long, because
+	// the JS challenge finishes with a second page load.
+	private static final long REWARM_SETTLE_MS = 1_500;
 	private static final String UA =
 		"Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36";
 
@@ -54,15 +63,35 @@ public class RedditFetchPlugin extends Plugin {
 
 	private WebView warmupWv;
 	private boolean warmedUp = false;
+	// True while a forced re-warm is running: the "a cookie exists" shortcut
+	// does not apply (stale cookies already exist), we wait for the page.
+	private boolean rewarming = false;
 	private final List<Runnable> pendingWarmup = new ArrayList<>();
+	private final Runnable releaseWarmupPage = () -> {
+		// The homepage is a full web app (scripts, service worker). Left open it
+		// sat in the same renderer process as Persimmon for the whole session,
+		// about 35 MB that made the renderer a likelier target for the system's
+		// low-memory killer. The cookies live in the CookieManager, not the page.
+		if (warmupWv != null && !rewarming) warmupWv.loadUrl(BLANK_URL);
+	};
+	private final Runnable settleRewarm = this::markWarm;
+	private final Runnable warmupTimeout = this::markWarm;
 
 	// Populate the (process-global) WebView cookie jar with Reddit's anonymous
 	// session cookies via a single real navigation. Once warm, plain okhttp
 	// requests (which share the cookie jar) are accepted too. Resolves when warm.
+	// `force: true` re-runs the warm-up even though cookies exist. Used when a
+	// request comes back blocked mid-session: the cookies have lapsed or Reddit
+	// wants its JS challenge solved again, and only a real page load does that.
 	@PluginMethod
 	public void warmup(final PluginCall call) {
+		final boolean force = Boolean.TRUE.equals(call.getBoolean("force", false));
 		main.post(() -> {
-			ensureWarmup();
+			if (force) {
+				rewarm();
+			} else {
+				ensureWarmup();
+			}
 			if (warmedUp) {
 				call.resolve();
 			} else {
@@ -91,30 +120,30 @@ public class RedditFetchPlugin extends Plugin {
 
 	@SuppressLint("SetJavaScriptEnabled")
 	private void ensureWarmup() {
-		if (warmupWv != null) return;
+		if (warmedUp || warmupWv != null) return;
 		CookieManager.getInstance().setAcceptCookie(true);
-		warmupWv = newWebView();
-		CookieManager.getInstance().setAcceptThirdPartyCookies(warmupWv, true);
-		warmupWv.setWebViewClient(new WebViewClient() {
-			@Override
-			public void onPageFinished(WebView view, String pageUrl) {
-				markWarm();
-			}
-
-			@Override
-			public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-				if (request.isForMainFrame()) markWarm();
-			}
-		});
-		// Don't wait forever for a slow homepage — proceed (cookies may be partial).
-		main.postDelayed(this::markWarm, WARMUP_TIMEOUT_MS);
+		// A returning user already has Reddit's cookies: the WebView cookie jar
+		// persists across launches. Loading the whole reddit.com homepage again
+		// on every start bought nothing and cost a lot. It ran alongside the
+		// first feed request, which took 6.6 s on a cold start against 0.7 s
+		// once that page had settled. If the saved cookies turn out stale, the
+		// first request comes back blocked and client.ts forces a re-warm.
+		final String existing = CookieManager.getInstance().getCookie(WARMUP_URL);
+		if (existing != null && !existing.isEmpty()) {
+			warmedUp = true;
+			return;
+		}
+		createWarmupWebView();
+		// Don't wait forever for a slow homepage: proceed (cookies may be partial).
+		main.removeCallbacks(warmupTimeout);
+		main.postDelayed(warmupTimeout, WARMUP_TIMEOUT_MS);
 		warmupWv.loadUrl(WARMUP_URL);
 		// The cookies we need land with the first response, long before the heavy
-		// homepage finishes rendering — so poll for them and proceed as soon as
-		// they're set, rather than waiting on onPageFinished.
+		// homepage finishes rendering, so poll for them and proceed as soon as
+		// they're set rather than waiting on onPageFinished.
 		final Runnable[] poll = new Runnable[1];
 		poll[0] = () -> {
-			if (warmedUp) return;
+			if (warmedUp || rewarming) return;
 			String c = CookieManager.getInstance().getCookie(WARMUP_URL);
 			if (c != null && !c.isEmpty()) {
 				markWarm();
@@ -125,11 +154,85 @@ public class RedditFetchPlugin extends Plugin {
 		main.postDelayed(poll[0], 150);
 	}
 
+	@SuppressLint("SetJavaScriptEnabled")
+	private void createWarmupWebView() {
+		warmupWv = newWebView();
+		CookieManager.getInstance().setAcceptThirdPartyCookies(warmupWv, true);
+		warmupWv.setWebViewClient(new WebViewClient() {
+			@Override
+			public void onPageFinished(WebView view, String pageUrl) {
+				if (BLANK_URL.equals(pageUrl)) return; // our own release, not a warm-up
+				if (rewarming) {
+					// Debounce: the challenge page finishes, then redirects to the
+					// real page, which finishes again.
+					main.removeCallbacks(settleRewarm);
+					main.postDelayed(settleRewarm, REWARM_SETTLE_MS);
+				} else {
+					markWarm();
+				}
+			}
+
+			@Override
+			public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+				if (request.isForMainFrame()) markWarm();
+			}
+
+			@Override
+			public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
+				// Every WebView sharing the dead renderer must report it handled,
+				// or Chromium kills the app regardless of what MainActivity says.
+				Log.w("Persimmon", "renderer gone: warm-up webview " + System.identityHashCode(view));
+				dropWarmupWebView();
+				return true;
+			}
+		});
+	}
+
 	private void markWarm() {
 		if (warmedUp) return;
 		warmedUp = true;
+		rewarming = false;
+		main.removeCallbacks(settleRewarm);
+		main.removeCallbacks(warmupTimeout);
 		for (Runnable r : pendingWarmup) main.post(r);
 		pendingWarmup.clear();
+		main.removeCallbacks(releaseWarmupPage);
+		main.postDelayed(releaseWarmupPage, RELEASE_DELAY_MS);
+	}
+
+	private void rewarm() {
+		if (rewarming) return; // one already in flight; callers queue behind it
+		// Always a real page load, even though cookies exist: they are the ones
+		// that just got us blocked.
+		if (warmupWv == null) createWarmupWebView();
+		warmedUp = false;
+		rewarming = true;
+		main.removeCallbacks(releaseWarmupPage);
+		main.removeCallbacks(warmupTimeout);
+		main.postDelayed(warmupTimeout, WARMUP_TIMEOUT_MS);
+		warmupWv.loadUrl(WARMUP_URL);
+	}
+
+	private void dropWarmupWebView() {
+		main.removeCallbacks(releaseWarmupPage);
+		main.removeCallbacks(settleRewarm);
+		main.removeCallbacks(warmupTimeout);
+		if (warmupWv != null) {
+			final ViewGroup parent = (ViewGroup) warmupWv.getParent();
+			if (parent != null) parent.removeView(warmupWv);
+			warmupWv.destroy();
+			warmupWv = null;
+		}
+		warmedUp = false;
+		rewarming = false;
+	}
+
+	@Override
+	protected void handleOnDestroy() {
+		// The activity is going away (including our own renderer recovery, which
+		// recreates it). Do not leave a WebView holding the old activity alive.
+		dropWarmupWebView();
+		super.handleOnDestroy();
 	}
 
 	private void startNavigation(final String url, final PluginCall call) {
@@ -202,6 +305,9 @@ public class RedditFetchPlugin extends Plugin {
 					JSObject ret = new JSObject();
 					ret.put("status", status[0]);
 					ret.put("body", decode(value));
+					// Where the navigation ended up after redirects. Lets the web
+					// side resolve share links (reddit.com/r/x/s/...) to a post.
+					ret.put("url", view.getUrl());
 					call.resolve(ret);
 					finish.run();
 				});
@@ -213,6 +319,18 @@ public class RedditFetchPlugin extends Plugin {
 				done[0] = true;
 				call.reject("navigation error");
 				finish.run();
+			}
+
+			@Override
+			public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
+				// See the warm-up client: report handled, and fail this one request.
+				Log.w("Persimmon", "renderer gone: request webview " + System.identityHashCode(view) + " done=" + done[0]);
+				if (!done[0]) {
+					done[0] = true;
+					call.reject("renderer gone");
+					finish.run();
+				}
+				return true;
 			}
 		});
 

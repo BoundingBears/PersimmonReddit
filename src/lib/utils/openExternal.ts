@@ -6,6 +6,7 @@
 
 import { Browser } from '@capacitor/browser';
 import { IS_NATIVE } from '$lib/utils/platform';
+import { expectAbsence } from '$lib/stores/lock';
 
 export interface OpenExternalOptions {
 	presentationStyle?: 'fullscreen' | 'popover';
@@ -15,6 +16,7 @@ export async function openExternal(url: string, opts: OpenExternalOptions = {}):
 	if (!url) return false;
 	try {
 		if (IS_NATIVE) {
+			expectAbsence();
 			await Browser.open({ url, presentationStyle: opts.presentationStyle });
 		} else {
 			window.open(url, '_blank', 'noopener,noreferrer');

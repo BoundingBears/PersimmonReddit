@@ -10,10 +10,13 @@ import { registerPlugin } from '@capacitor/core';
 export interface RedditFetchPlugin {
 	// One-time cookie warm-up (navigate a WebView to reddit.com) so plain okhttp
 	// requests are accepted afterward. Resolves when the cookie jar is populated.
-	warmup(): Promise<void>;
+	// `force` re-runs it even though cookies exist, for when requests start
+	// coming back blocked mid-session (cookies lapsed, or a fresh JS challenge).
+	warmup(options?: { force?: boolean }): Promise<void>;
 	// Real WebView navigation to a URL, returning the rendered body — the
 	// self-healing fallback when okhttp is blocked (cookies lapsed).
-	get(options: { url: string }): Promise<{ status: number; body: string }>;
+	// `url` is where the navigation ended up after any redirects.
+	get(options: { url: string }): Promise<{ status: number; body: string; url?: string }>;
 }
 
 export const RedditFetch = registerPlugin<RedditFetchPlugin>('RedditFetch');

@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { blockedUsers, isBlocked } from '$lib/stores/blockedUsers';
+	import { filters, isMutedSub } from '$lib/stores/filters';
 	import ErrorState from '$lib/components/shared/ErrorState.svelte';
 	import { onDestroy, untrack } from 'svelte';
 	import { afterNavigate, goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import TopAppBar from '$lib/components/chrome/TopAppBar.svelte';
 	import PostCompact from '$lib/components/feed/PostCompact.svelte';
+	import Tabs from '$lib/components/shared/Tabs.svelte';
 	import Icon from '$lib/components/shared/Icon.svelte';
 	import { formatScore } from '$lib/utils/format';
 	import { searchPosts, searchSubreddits, searchUsers } from '$lib/reddit/endpoints';
@@ -16,6 +18,8 @@
 		restoreScrollAnchor,
 		type ScrollAnchor
 	} from '$lib/utils/scrollRestore';
+	import { isShareLink, parseRedditUrl } from '$lib/utils/parseRedditUrl';
+	import { openRedditLink } from '$lib/utils/installDeepLinks';
 	import type { Post, Subreddit, User } from '$lib/reddit/types';
 
 	function isSubbed(name: string): boolean {
@@ -38,6 +42,11 @@
 
 	type Tab = 'posts' | 'subreddits' | 'users';
 	const TABS: Tab[] = ['posts', 'subreddits', 'users'];
+	const TAB_ITEMS: ReadonlyArray<{ value: Tab; label: string }> = [
+		{ value: 'posts', label: 'Posts' },
+		{ value: 'subreddits', label: 'Subreddits' },
+		{ value: 'users', label: 'Users' }
+	];
 
 	// Hydrate state from URL so back-navigation restores the user's query and
 	// active tab. We re-sync the URL whenever either changes (replaceState so
@@ -62,8 +71,24 @@
 		}
 	}
 
+	// A pasted Reddit link is not something to search for, it is somewhere to
+	// go: the post, subreddit or profile it points at. Finding a post in the
+	// app that you already have a link to used to mean searching for its title.
+	function redditLinkIn(text: string): string | null {
+		const found = text.match(/(?:https?:\/\/)?(?:[a-z]+\.)?(?:reddit\.com|redd\.it)\/\S+/i)?.[0];
+		if (!found) return null;
+		const url = /^https?:\/\//i.test(found) ? found : `https://${found}`;
+		return parseRedditUrl(url) || isShareLink(url) ? url : null;
+	}
+
 	async function run() {
 		if (!q.trim()) return;
+		const link = redditLinkIn(q.trim());
+		if (link) {
+			q = '';
+			await openRedditLink(link);
+			return;
+		}
 		loading = true;
 		error = null;
 		try {
@@ -145,23 +170,17 @@
 
 <div class="search-row">
 	<Icon name="search" size={20} />
-	<input bind:value={q} onkeydown={onKey} placeholder="Search Reddit…" />
+	<input bind:value={q} onkeydown={onKey} placeholder="Search Reddit, or paste a Reddit link" />
 	<button onclick={() => { syncUrl(); run(); }} class="go" disabled={!q.trim() || loading}>Go</button>
 </div>
 
-<div class="tabs" role="tablist">
-	{#each TABS as t}
-		<button class="tab" class:active={tab === t} onclick={() => selectTab(t)}>
-			{t}
-		</button>
-	{/each}
-</div>
+<Tabs tabs={TAB_ITEMS} value={tab} onchange={selectTab} />
 
 {#if error}<ErrorState message={error} />{/if}
 {#if loading}<div class="status">Searching…</div>{/if}
 
 {#if tab === 'posts'}
-	{#each posts.filter((p) => !isBlocked($blockedUsers, p.author)) as p (p.id)}<PostCompact post={p} />{/each}
+	{#each posts.filter((p) => !isBlocked($blockedUsers, p.author) && !isMutedSub(p.subreddit, $filters)) as p (p.id)}<PostCompact post={p} />{/each}
 {:else if tab === 'subreddits'}
 	{#each subs as s (s.name)}
 		<div class="sub-row">
@@ -185,7 +204,8 @@
 				onclick={() => toggleSub(s)}
 				aria-label={isSubbed(s.name) ? `Unsubscribe from r/${s.name}` : `Subscribe to r/${s.name}`}
 			>
-				<Icon name={isSubbed(s.name) ? 'bookmark' : 'bookmark_border'} filled={isSubbed(s.name)} size={22} />
+				<Icon name={isSubbed(s.name) ? 'check' : 'add'} size={16} />
+				{isSubbed(s.name) ? 'Added' : 'Add'}
 			</button>
 		</div>
 	{/each}
@@ -233,23 +253,6 @@
 	.go:disabled {
 		opacity: 0.5;
 	}
-	.tabs {
-		display: flex;
-		border-bottom: 1px solid var(--md-sys-color-outline-variant);
-	}
-	.tab {
-		flex: 1;
-		padding: 10px;
-		font-size: var(--type-secondary);
-		font-weight: var(--weight-title);
-		color: var(--md-sys-color-on-surface-variant);
-		text-transform: capitalize;
-		border-bottom: 2px solid transparent;
-	}
-	.tab.active {
-		color: var(--md-sys-color-primary);
-		border-bottom-color: var(--md-sys-color-primary);
-	}
 	.sub-row {
 		display: flex;
 		align-items: center;
@@ -265,21 +268,25 @@
 		padding: 10px 14px;
 		color: inherit;
 	}
+	/* The same Add / Added button as the Subs tab. */
 	.sub-toggle {
 		flex: none;
 		display: inline-flex;
 		align-items: center;
-		justify-content: center;
-		width: 40px;
-		height: 40px;
-		border-radius: 20px;
-		color: var(--md-sys-color-on-surface-variant);
+		gap: 4px;
+		height: 34px;
+		margin-right: 12px;
+		padding: 0 14px 0 10px;
+		border-radius: 17px;
+		font: inherit;
+		font-size: var(--type-secondary);
+		font-weight: var(--weight-title);
+		background: var(--md-sys-color-primary);
+		color: var(--md-sys-color-on-primary);
 	}
 	.sub-toggle.subbed {
-		color: var(--md-sys-color-primary);
-	}
-	.sub-toggle:active {
-		background: var(--md-sys-color-surface-container-highest);
+		background: var(--md-sys-color-secondary-container);
+		color: var(--md-sys-color-on-secondary-container);
 	}
 	.sub-row img,
 	.placeholder {

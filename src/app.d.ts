@@ -5,11 +5,16 @@ declare global {
 		// interface Error {}
 		// interface Locals {}
 		// interface PageData {}
-		// interface PageState {}
+		interface PageState {
+			// A post open in the layer over the current page. See postLayer.ts.
+			postId?: string;
+		}
 		// interface Platform {}
 	}
 
 	const __APP_VERSION__: string;
+	const __REDDIT_CLIENT_ID__: string;
+	const __REDDIT_APP_OWNER__: string;
 }
 
 export {};

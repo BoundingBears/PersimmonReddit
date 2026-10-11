@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { openPost } from '$lib/stores/postLayer';
 	import Icon from '$lib/components/shared/Icon.svelte';
 	import { prefs } from '$lib/stores/prefs';
 	import { readPosts } from '$lib/stores/readPosts';
@@ -13,13 +13,13 @@
 	}
 
 	let { post, onOpen }: Props = $props();
-	let thumb = $derived(post.preview?.url ?? post.image?.url ?? post.thumbnail);
+	let thumb = $derived(post.previewTile?.url ?? post.preview?.url ?? post.image?.url ?? post.thumbnail);
 	let blur = $derived(post.over18 && $prefs.blurNsfw);
 	let visited = $derived($prefs.markPostsRead && $readPosts.has(post.id));
 
 	function open() {
 		if (onOpen) onOpen(post);
-		else goto(`/comments/${post.id}`);
+		else openPost(post.id, post);
 	}
 </script>
 
@@ -36,7 +36,7 @@
 	{:else}
 		<div class="placeholder"><Icon name="image" size={32} /></div>
 	{/if}
-	{#if post.kind === 'video'}
+	{#if post.kind === 'video' || post.kind === 'embed'}
 		<span class="badge"><Icon name="play_arrow" size={14} /></span>
 	{:else if post.kind === 'gallery'}
 		<span class="badge"><Icon name="collections" size={14} /></span>

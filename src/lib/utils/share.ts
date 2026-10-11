@@ -5,11 +5,13 @@ import { Share } from '@capacitor/share';
 import { IS_NATIVE } from './platform';
 import { pushToast } from '$lib/stores/toast';
 import { tick } from '$lib/utils/haptics';
+import { expectAbsence } from '$lib/stores/lock';
 
 export async function sharePost(opts: { url: string; title?: string }): Promise<void> {
 	const { url, title } = opts;
 	try {
 		if (IS_NATIVE) {
+			expectAbsence();
 			await Share.share({ url, title, dialogTitle: 'Share' });
 			tick();
 			return;

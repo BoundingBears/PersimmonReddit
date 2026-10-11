@@ -12,13 +12,13 @@
 	let valid = $derived(Number.isFinite(ts) && ts > 0);
 	let iso = $derived(valid ? new Date(ts * 1000).toISOString() : '');
 	let pretty = $derived(valid ? formatDateTime(ts) : '');
-	let relative = $derived(valid ? formatRelativeTime(ts) : '—');
+	let relative = $derived(valid ? formatRelativeTime(ts) : '•');
 </script>
 
 {#if valid}
 	<time datetime={iso} title={pretty}>{relative}</time>
 {:else}
-	<span class="missing">—</span>
+	<span class="missing">•</span>
 {/if}
 
 <style>

@@ -20,6 +20,8 @@ import { feedEditState } from '$lib/stores/feedEdit';
 import { drawerOpen } from '$lib/stores/drawer';
 import { viewerState, closeViewer } from '$lib/stores/imageViewer';
 import { IS_NATIVE } from './platform';
+import { clearSession, hasBackStack } from '$lib/stores/session';
+import { appLocked } from '$lib/stores/lock';
 
 export function installBackHandler(): () => void {
 	if (!browser || !IS_NATIVE) return () => {};
@@ -28,6 +30,11 @@ export function installBackHandler(): () => void {
 	let cancelled = false;
 
 	App.addListener('backButton', ({ canGoBack }) => {
+		// Behind the lock screen there is nowhere to go back to but out.
+		if (get(appLocked)) {
+			App.minimizeApp();
+			return;
+		}
 		if (get(postActionsState)) {
 			postActionsState.set(null);
 			return;
@@ -55,9 +62,14 @@ export function installBackHandler(): () => void {
 			closeViewer();
 			return;
 		}
-		if (canGoBack) {
+		// Our own stack depth, not just the WebView's canGoBack(): see
+		// hasBackStack() for why the native answer is wrong after a restore.
+		if (canGoBack || hasBackStack()) {
 			window.history.back();
 		} else {
+			// Backing out of the root is the user choosing to leave, not the
+			// system interrupting them: the next launch should be a fresh one.
+			clearSession();
 			App.exitApp();
 		}
 	}).then((handle) => {

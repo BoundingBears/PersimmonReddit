@@ -7,14 +7,12 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
-import {
-	parseCommentListing,
+import { parseCommentListing,
 	parsePost,
 	parsePostListing,
 	parseSubmissionAndComments,
 	parseSubreddit,
-	parseSubredditListing
-} from './parsers';
+	parseSubredditListing, pickRendition } from './parsers';
 import { detectKind, isPlaceholderThumbnail } from './media';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -56,6 +54,21 @@ describe('parsePostListing (r/pics/hot)', () => {
 			expect(p.thumbnail).not.toBe('default');
 			expect(p.thumbnail).not.toBe('self');
 		}
+	});
+});
+
+describe('grid tile picture', () => {
+	const data = parsePostListing(fixture('pics-hot.json'));
+	it('is a smaller rendition of the same picture than the full-width one', () => {
+		const withBoth = data.items.filter((p) => p.preview && p.previewTile);
+		expect(withBoth.length).toBeGreaterThan(0);
+		for (const p of withBoth) {
+			expect(p.previewTile!.width).toBeLessThanOrEqual(p.preview!.width);
+			// Still at least half a screen wide, so a two-column tile is sharp.
+			expect(p.previewTile!.width).toBeGreaterThanOrEqual(Math.min(540, p.previewSource!.width));
+		}
+		// And for a big picture it really is smaller, not the same file again.
+		expect(withBoth.some((p) => p.previewTile!.width < p.preview!.width)).toBe(true);
 	});
 });
 
@@ -157,4 +170,22 @@ describe('isPlaceholderThumbnail', () => {
 	])('%s -> %s', (input, expected) => {
 		expect(isPlaceholderThumbnail(input as string | undefined)).toBe(expected);
 	});
+});
+
+describe('pickRendition', () => {
+	const ladder = [108, 216, 320, 640, 960, 1080].map((w) => ({ url: `r${w}`, width: w, height: w }));
+	const src = (w: number) => ({ url: 'source', width: w, height: w });
+
+	it('picks the smallest rendition that fills the target', () =>
+		expect(pickRendition(src(4848), ladder, 1080)?.url).toBe('r1080'));
+	it('a narrower screen takes a smaller rendition', () =>
+		expect(pickRendition(src(4848), ladder, 700)?.url).toBe('r960'));
+	it('falls back to the source when nothing on the ladder is wide enough', () =>
+		expect(pickRendition(src(452), ladder.filter((r) => r.width < 452), 1080)?.url).toBe('source'));
+	it('keeps the source when it is no bigger than the chosen rendition', () =>
+		expect(pickRendition(src(1080), ladder, 1080)?.url).toBe('source'));
+	it('no ladder at all', () => expect(pickRendition(src(3000), undefined, 1080)?.url).toBe('source'));
+	it('ignores ladder entries without a url', () =>
+		expect(pickRendition(src(3000), [{ url: '', width: 1080, height: 1 }], 1080)?.url).toBe('source'));
+	it('no source', () => expect(pickRendition(undefined, ladder, 1080)).toBeUndefined());
 });

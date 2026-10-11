@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { expectAbsence } from '$lib/stores/lock';
 	import Icon from '$lib/components/shared/Icon.svelte';
 	import { prefs } from '$lib/stores/prefs';
 	import { Browser } from '@capacitor/browser';
@@ -15,6 +16,7 @@
 	async function open() {
 		if (!url) return;
 		if ($prefs.openLinksInBrowser && IS_NATIVE) {
+			expectAbsence();
 			await Browser.open({ url, presentationStyle: 'popover' });
 		} else {
 			window.open(url, '_blank', 'noopener,noreferrer');

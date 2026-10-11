@@ -1,6 +1,6 @@
 <script lang="ts">
 	import ErrorState from '$lib/components/shared/ErrorState.svelte';
-	import { onDestroy, untrack } from 'svelte';
+	import { onDestroy, onMount, untrack } from 'svelte';
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { page } from '$app/stores';
 	import TopAppBar from '$lib/components/chrome/TopAppBar.svelte';
@@ -15,6 +15,9 @@
 	import { prefs } from '$lib/stores/prefs';
 	import { openSubredditInfo } from '$lib/stores/subredditInfo';
 	import { getFeedSnapshot, saveFeedSnapshot } from '$lib/stores/feedSnapshot';
+	import { filters, isMixedFeed, isMutedSub } from '$lib/stores/filters';
+	import { pushToast } from '$lib/stores/toast';
+	import { registerLiveSaver } from '$lib/stores/session';
 	import { captureScrollAnchor, restoreScrollAnchor } from '$lib/utils/scrollRestore';
 	import type { Post, Sort } from '$lib/reddit/types';
 
@@ -114,11 +117,26 @@
 
 	// Save in beforeNavigate (not onDestroy) so we capture the real position
 	// before the page DOM unmounts and the browser clamps scrollY to 0.
-	beforeNavigate(() => {
+	function saveSnapshot() {
 		if (typeof window === 'undefined' || posts.length === 0) return;
-		cancelRestore?.();
 		saveFeedSnapshot(snapshotKey, { posts, after, sort, ...captureScrollAnchor() });
+	}
+	beforeNavigate(() => {
+		cancelRestore?.();
+		saveSnapshot();
 	});
+	// Also capture the feed while it is the page on screen, so it survives the
+	// app being killed in the background (see session.ts).
+	onMount(() => registerLiveSaver(saveSnapshot));
+
+	let mixed = $derived(isMixedFeed(sub));
+	// Opening a muted subreddit directly still shows it, with a way back out
+	// of the mute, since this page is otherwise the only trace that it exists.
+	let muted = $derived(!mixed && isMutedSub(sub, $filters));
+	function unmute() {
+		filters.remove('subreddits', sub.toLowerCase());
+		pushToast(`Unmuted r/${sub}`);
+	}
 
 	let isSubbed = $derived(
 		$subscribed.some((s) => s.name.toLowerCase() === sub.toLowerCase())
@@ -143,11 +161,16 @@
 		}
 	}
 
+	// The posts already on screen stay there until the new ones arrive. If
+	// they never do, they are still better than an empty page.
 	async function refresh() {
 		clearCache();
-		posts = [];
-		after = null;
 		await load(true, true);
+		if (error && posts.length > 0) {
+			error = null;
+			pushToast("Couldn't refresh. Showing what was already loaded.", { key: 'refresh-failed' });
+			return;
+		}
 		window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
 	}
 </script>
@@ -168,10 +191,19 @@
 	<ErrorState message="Couldn't load r/{sub} ({error})." onRetry={() => load(true)} />
 {/if}
 
+{#if muted}
+	<div class="muted-note">
+		<span>You've muted r/{sub}. Its posts are hidden from your feeds.</span>
+		<button onclick={unmute}>Unmute</button>
+	</div>
+{/if}
+
 <FeedList
 	{posts}
 	{loading}
 	hasMore={after !== null}
+	applyFilters={mixed}
+	anchorId={initialSnap?.anchorId}
 	{staleAt}
 	{error}
 	onLoadMore={() => load(false)}
@@ -179,6 +211,30 @@
 />
 
 <style>
+	.muted-note {
+		display: flex;
+		align-items: center;
+		gap: var(--space-md);
+		padding: var(--space-md) var(--space-lg);
+		font-size: var(--type-secondary);
+		line-height: 1.4;
+		background: var(--md-sys-color-surface-container);
+		color: var(--md-sys-color-on-surface-variant);
+	}
+	.muted-note span {
+		flex: 1;
+		min-width: 0;
+	}
+	.muted-note button {
+		flex: none;
+		padding: 6px 14px;
+		border-radius: 16px;
+		background: var(--md-sys-color-secondary-container);
+		color: var(--md-sys-color-on-secondary-container);
+		font: inherit;
+		font-size: var(--type-secondary);
+		font-weight: var(--weight-title);
+	}
 	.iconbtn {
 		display: inline-flex;
 		align-items: center;

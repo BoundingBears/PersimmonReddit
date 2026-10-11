@@ -12,7 +12,7 @@
 
 <span class="vote">
 	<Icon name="arrow_upward" size={18} />
-	<span>{hidden ? '—' : formatScore(score)}</span>
+	<span>{hidden ? '•' : formatScore(score)}</span>
 </span>
 
 <style>

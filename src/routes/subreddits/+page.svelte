@@ -5,7 +5,7 @@
 	import TopAppBar from '$lib/components/chrome/TopAppBar.svelte';
 	import Icon from '$lib/components/shared/Icon.svelte';
 	import { formatScore } from '$lib/utils/format';
-	import { getPopularSubreddits, getSubreddit } from '$lib/reddit/endpoints';
+	import { getPopularSubreddits, getSubreddit, searchSubreddits } from '$lib/reddit/endpoints';
 	import { subscribed } from '$lib/stores/subscribed';
 	import { flip } from 'svelte/animate';
 	import { dragReorder } from '$lib/actions/dragReorder';
@@ -16,6 +16,43 @@
 	let after = $state<string | null>(null);
 	let loading = $state(false);
 	let error = $state<string | null>(null);
+
+	// Finding a subreddit to add, right here. This used to mean leaving for the
+	// Search tab, searching, switching its results to "Subreddits", and coming
+	// back; adding three was that three times over.
+	let query = $state('');
+	let found = $state<Subreddit[]>([]);
+	let finding = $state(false);
+	let findGen = 0;
+	let findTimer: ReturnType<typeof setTimeout> | null = null;
+	let q = $derived(query.trim().replace(/^\/?r\//i, ''));
+	$effect(() => {
+		const term = q;
+		if (findTimer) clearTimeout(findTimer);
+		const gen = ++findGen;
+		if (term.length < 2) {
+			found = [];
+			finding = false;
+			return;
+		}
+		finding = true;
+		findTimer = setTimeout(async () => {
+			const r = await searchSubreddits(term, { limit: 15 });
+			if (gen !== findGen) return;
+			found = r.ok ? r.data.items : [];
+			finding = false;
+		}, 300);
+	});
+
+	function toggle(s: Subreddit) {
+		if (subscribed.has(s.name, $subscribed)) subscribed.remove(s.name);
+		else
+			subscribed.add(s.name, {
+				iconImg: s.iconImg || s.communityIcon,
+				primaryColor: s.primaryColor,
+				subscribers: s.subscribers
+			});
+	}
 
 	// Edit mode for the subscribed list: rows stop navigating, grow a drag
 	// handle, and can be reordered. Order matters beyond the list — the merged
@@ -90,9 +127,61 @@
 	{/snippet}
 </TopAppBar>
 
+{#snippet subRow(s: Subreddit)}
+	{@const added = subscribed.has(s.name, $subscribed)}
+	<div class="sub-row">
+		<a class="row-link" href={`/r/${s.name}`}>
+			{#if s.iconImg || s.communityIcon}
+				<img src={s.iconImg || s.communityIcon} alt="" referrerpolicy="no-referrer" />
+			{:else}
+				<div class="placeholder"><Icon name="forum" size={20} /></div>
+			{/if}
+			<div class="meta">
+				<div class="name">r/{s.name}</div>
+				<div class="stats">{formatScore(s.subscribers)} members</div>
+				{#if s.publicDescription}
+					<div class="desc">{s.publicDescription}</div>
+				{/if}
+			</div>
+		</a>
+		<button class="add" class:added onclick={() => toggle(s)} aria-label={added ? `Remove r/${s.name}` : `Add r/${s.name}`}>
+			<Icon name={added ? 'check' : 'add'} size={16} />
+			{added ? 'Added' : 'Add'}
+		</button>
+	</div>
+{/snippet}
+
+<label class="find">
+	<Icon name="search" size={20} />
+	<input
+		type="search"
+		bind:value={query}
+		placeholder="Find a subreddit to add"
+		autocapitalize="off"
+		autocomplete="off"
+		spellcheck="false"
+		enterkeyhint="search"
+	/>
+	{#if query}
+		<button class="iconbtn" onclick={() => (query = '')} aria-label="Clear"><Icon name="close" size={20} /></button>
+	{/if}
+</label>
+
+{#if q.length >= 2}
+	<section class="section">
+		{#each found as s (s.name)}
+			{@render subRow(s)}
+		{/each}
+		{#if finding && found.length === 0}
+			<div class="status">Searching…</div>
+		{:else if !finding && found.length === 0}
+			<div class="status">No subreddits match "{q}".</div>
+		{/if}
+	</section>
+{:else}
 {#if $subscribed.length > 0}
 	<section class="section">
-		<h2 class="section-title">Subscribed ({$subscribed.length})</h2>
+		<h2 class="section-title section-label">Subscribed ({$subscribed.length})</h2>
 		<a class="row-link feed" href="/subscribed">
 			<div class="placeholder primary"><Icon name="bookmarks" size={20} filled /></div>
 			<div class="meta">
@@ -142,58 +231,24 @@
 {/if}
 
 <section class="section">
-	<h2 class="section-title">Popular</h2>
+	<h2 class="section-title section-label">Popular</h2>
 	{#if error}<ErrorState message={error} />{/if}
 	{#each subs as s (s.name)}
-		<div class="sub-row">
-			<a class="row-link" href={`/r/${s.name}`}>
-				{#if s.iconImg || s.communityIcon}
-					<img src={s.iconImg || s.communityIcon} alt="" referrerpolicy="no-referrer" />
-				{:else}
-					<div class="placeholder"><Icon name="forum" size={20} /></div>
-				{/if}
-				<div class="meta">
-					<div class="name">r/{s.name}</div>
-					<div class="stats">{formatScore(s.subscribers)} members</div>
-					{#if s.publicDescription}
-						<div class="desc">{s.publicDescription}</div>
-					{/if}
-				</div>
-			</a>
-			<button
-				class="iconbtn"
-				onclick={() =>
-					subscribed.has(s.name, $subscribed)
-						? subscribed.remove(s.name)
-						: subscribed.add(s.name, {
-								iconImg: s.iconImg || s.communityIcon,
-								primaryColor: s.primaryColor,
-								subscribers: s.subscribers
-							})}
-				aria-label="Toggle subscribe"
-			>
-				<Icon name={subscribed.has(s.name, $subscribed) ? 'bookmark' : 'bookmark_border'} size={22} filled={subscribed.has(s.name, $subscribed)} />
-			</button>
-		</div>
+		{@render subRow(s)}
 	{/each}
 	{#if loading}<div class="status">Loading…</div>{/if}
 	{#if !loading && after}
 		<button class="more" onclick={() => load(false)}>Load more</button>
 	{/if}
 </section>
+{/if}
 
 <style>
 	.section {
 		padding-bottom: 8px;
 	}
 	.section-title {
-		margin: 0;
-		padding: 12px 16px 6px;
-		font-size: var(--type-secondary);
-		font-weight: var(--weight-heading);
-		color: var(--md-sys-color-on-surface-variant);
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
+		padding: 14px 16px 8px;
 	}
 	.row-link {
 		flex: 1;
@@ -250,6 +305,50 @@
 		line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
+	}
+	.find {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin: 10px 12px 2px;
+		padding: 0 6px 0 14px;
+		height: 46px;
+		border-radius: 23px;
+		background: var(--md-sys-color-surface-container-high);
+		color: var(--md-sys-color-on-surface-variant);
+	}
+	.find input {
+		flex: 1;
+		min-width: 0;
+		border: 0;
+		outline: 0;
+		background: none;
+		color: var(--md-sys-color-on-surface);
+		font: inherit;
+		font-size: var(--type-body-lg);
+	}
+	.find input::-webkit-search-cancel-button {
+		display: none;
+	}
+	/* Says what a tap will do, in words. The bookmark it replaces is what the
+	   app uses for saving posts. */
+	.add {
+		flex: none;
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		height: 34px;
+		padding: 0 14px 0 10px;
+		border-radius: 17px;
+		font: inherit;
+		font-size: var(--type-secondary);
+		font-weight: var(--weight-title);
+		background: var(--md-sys-color-primary);
+		color: var(--md-sys-color-on-primary);
+	}
+	.add.added {
+		background: var(--md-sys-color-secondary-container);
+		color: var(--md-sys-color-on-secondary-container);
 	}
 	.iconbtn {
 		display: inline-flex;

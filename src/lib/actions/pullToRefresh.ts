@@ -23,6 +23,9 @@ export interface PullToRefreshOptions {
 	onState?: (s: PullToRefreshState) => void;
 	threshold?: number;
 	max?: number;
+	// How far the content is scrolled. Defaults to the window; a page inside
+	// its own scrolling element passes that element's offset.
+	scrollTop?: () => number;
 }
 
 export function pullToRefresh(node: HTMLElement, options: PullToRefreshOptions) {
@@ -35,13 +38,17 @@ export function pullToRefresh(node: HTMLElement, options: PullToRefreshOptions) 
 	let startY = -1;
 	let active = false;
 
+	function scrolled(): boolean {
+		return (opts.scrollTop ? opts.scrollTop() : window.scrollY) > 0;
+	}
+
 	function emit() {
 		opts.onState?.({ distance: pullDistance, refreshing });
 	}
 
 	function start(e: TouchEvent) {
 		if (refreshing) return;
-		if (window.scrollY > 0) return;
+		if (scrolled()) return;
 		startY = e.touches[0].clientY;
 		active = false;
 	}
@@ -49,7 +56,7 @@ export function pullToRefresh(node: HTMLElement, options: PullToRefreshOptions) 
 	function move(e: TouchEvent) {
 		if (startY < 0 || refreshing) return;
 		const delta = e.touches[0].clientY - startY;
-		if (delta < 0 || window.scrollY > 0) {
+		if (delta < 0 || scrolled()) {
 			startY = -1;
 			active = false;
 			pullDistance = 0;

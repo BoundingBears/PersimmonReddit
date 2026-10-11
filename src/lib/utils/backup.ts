@@ -6,7 +6,7 @@
 // the initial format. Each store's own hydrate() method sanitizes its slice, so
 // parseBackup() only has to coerce missing slices to safe empties.
 
-import { get } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 import { prefs, DEFAULT_PREFS, type Prefs } from '$lib/stores/prefs';
 import { subscribed, type SubscribedEntry } from '$lib/stores/subscribed';
 import { saved, type SavedEntry } from '$lib/stores/saved';
@@ -62,6 +62,13 @@ export function exportBackup(): Backup {
 		}
 	};
 }
+
+/**
+ * A backup the user opened from outside the app (tapped a .persimmon file in
+ * a file manager). Settings picks it up and asks what to do with it, exactly
+ * as if it had been chosen with Import backup.
+ */
+export const incomingBackup = writable<Backup | null>(null);
 
 // Current backup serialized to the string we write to disk.
 export function serializeBackup(): string {

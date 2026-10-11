@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { blockedUsers, isBlocked } from '$lib/stores/blockedUsers';
-	import { untrack } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { tick, untrack } from 'svelte';
+	import { openPost } from '$lib/stores/postLayer';
 	import PostCard from './PostCard.svelte';
 	import PostCompact from './PostCompact.svelte';
 	import PostGallery from './PostGallery.svelte';
@@ -20,9 +20,9 @@
 		posts: Post[];
 		loading?: boolean;
 		hasMore?: boolean;
-		// Apply the user's content filters (keyword/subreddit/domain). Only the
-		// merged subscribed feed opts in — browsing a specific sub or the front
-		// page shouldn't silently drop posts.
+		// Apply the user's content filters (keyword/subreddit/domain). On for
+		// every feed that mixes subreddits, off inside a single subreddit the
+		// user opened on purpose. See isMixedFeed in filters.ts.
 		applyFilters?: boolean;
 		// Set when these posts came from the persistent cache (live fetch failed).
 		staleAt?: number | null;
@@ -31,6 +31,9 @@
 		error?: string | null;
 		onLoadMore?: () => void;
 		onRefresh?: () => Promise<void> | void;
+		// When the feed is being rebuilt from a snapshot: the post the user was
+		// looking at. Cards around it are mounted first, see the render window.
+		anchorId?: string;
 	}
 
 	let {
@@ -41,7 +44,8 @@
 		staleAt = null,
 		error = null,
 		onLoadMore,
-		onRefresh
+		onRefresh,
+		anchorId
 	}: Props = $props();
 
 	// On iOS, NSFW posts are dropped entirely regardless of any pref — App
@@ -73,26 +77,82 @@
 	// Read-hiding (and nothing else) is what left the feed empty.
 	let caughtUp = $derived(readHideActive && baseVisible.length > 0 && visible.length === 0);
 
-	// Progressive render — paint a screenful immediately, then stream the rest
-	// in over a few frames so a freshly-loaded page populates top-to-bottom
-	// instead of all 25 cards laying out in one janky frame. Seed to the full
-	// count when posts already exist at mount (back-nav snapshot) so scroll
-	// restoration has the real page height to land on.
+	// The render window: which slice of `visible` is actually mounted. It always
+	// grows to cover everything, a few cards per frame, so the main thread is
+	// never blocked for long.
+	//
+	//   - Fresh load: a screenful first, then the rest top to bottom, instead
+	//     of all 25 cards laying out in one janky frame.
+	//   - Back from a post (posts already here): the cards AROUND the post the
+	//     user was looking at first, then outwards in both directions. This
+	//     used to mount every card before anything could respond, which
+	//     measured 1.9 s of frozen main thread for 50 posts and grew with every
+	//     page scrolled. Position is restored by aligning the anchor post
+	//     (scrollRestore.ts), so it does not need the cards above it to exist.
 	const INITIAL_RENDER = 8;
 	const RENDER_STEP = 6;
-	let renderLimit = $state(untrack(() => (posts.length > 0 ? posts.length : INITIAL_RENDER)));
+	const WINDOW_ABOVE = 3;
+	const WINDOW_BELOW = 6;
+	const initial = untrack(() => {
+		if (posts.length === 0) return { start: 0, end: INITIAL_RENDER };
+		const at = anchorId ? visible.findIndex((p) => p.id === anchorId) : -1;
+		// No anchor to centre on: mount everything, as before.
+		if (at < 0) return { start: 0, end: visible.length };
+		return { start: Math.max(0, at - WINDOW_ABOVE), end: Math.min(visible.length, at + WINDOW_BELOW + 1) };
+	});
+	let start = $state(initial.start);
+	let end = $state(initial.end);
+	let listEl: HTMLDivElement | undefined = $state();
+	let growAboveNext = false;
+
+	// Mounting cards above the viewport pushes everything down. Put the view
+	// back by however far the first already-mounted card moved.
+	async function growAbove() {
+		const ref = listEl?.querySelector<HTMLElement>('[data-post-id]');
+		const before = ref?.getBoundingClientRect().top;
+		start = Math.max(0, start - RENDER_STEP);
+		await tick();
+		if (!ref || before === undefined || !ref.isConnected) return;
+		const moved = ref.getBoundingClientRect().top - before;
+		if (Math.abs(moved) > 0.5) window.scrollBy({ top: moved, behavior: 'instant' as ScrollBehavior });
+	}
+
 	$effect(() => {
-		if (visible.length === 0) {
-			renderLimit = INITIAL_RENDER; // reset for the next fresh fill
+		const n = visible.length;
+		if (n === 0) {
+			// reset for the next fresh fill
+			start = 0;
+			end = INITIAL_RENDER;
 			return;
 		}
-		if (renderLimit >= visible.length) return;
+		const below = end < n;
+		const above = start > 0;
+		// Not while refreshing: those cards are about to be replaced.
+		if ((!below && !above) || refreshing) return;
 		const id = requestAnimationFrame(() => {
-			renderLimit = Math.min(renderLimit + RENDER_STEP, visible.length);
+			// Alternate sides so neither direction of scroll runs into a gap.
+			if (above && (growAboveNext || !below)) {
+				growAboveNext = false;
+				void growAbove();
+			} else {
+				growAboveNext = true;
+				end = Math.min(end + RENDER_STEP, n);
+			}
 		});
 		return () => cancelAnimationFrame(id);
 	});
-	let shown = $derived(visible.slice(0, renderLimit));
+	let shown = $derived(visible.slice(start, end));
+
+	// Boot milestone: the first time any feed has posts on screen.
+	let markedFirstPosts = false;
+	$effect(() => {
+		if (!markedFirstPosts && shown.length > 0) {
+			markedFirstPosts = true;
+			if (performance.getEntriesByName('persimmon:first-posts').length === 0) {
+				performance.mark('persimmon:first-posts');
+			}
+		}
+	});
 
 	let sentinel: HTMLDivElement | undefined = $state();
 
@@ -101,6 +161,13 @@
 
 	function onPullState(s: PullToRefreshState) {
 		pullDistance = s.distance;
+		if (s.refreshing && !refreshing) {
+			// The old posts stay on screen during a refresh. Cut them back to a
+			// screenful so the fresh list fills in a few cards per frame like a
+			// first load, instead of every new card mounting in one frame.
+			start = 0;
+			end = INITIAL_RENDER;
+		}
 		refreshing = s.refreshing;
 	}
 
@@ -166,7 +233,7 @@
 			!loading &&
 			onLoadMore &&
 			visible.length > 0 &&
-			renderLimit >= visible.length
+			end >= visible.length
 		) {
 			onLoadMore();
 		}
@@ -179,21 +246,21 @@
 	{#if staleAt}
 		<div class="stale-banner">
 			<Icon name="cloud_off" size={16} />
-			<span>Showing cached posts — couldn't reach Reddit. Pull to refresh.</span>
+			<span>Showing cached posts: couldn't reach Reddit. Pull to refresh.</span>
 		</div>
 	{/if}
 
 	{#if showSkeletons}
 		<FeedSkeleton count={4} layout={$prefs.layout} />
 	{:else}
-		<div class="list" data-layout={$prefs.layout}>
+		<div class="list" data-layout={$prefs.layout} bind:this={listEl}>
 			{#each shown as post (post.id)}
 				{#if $prefs.layout === 'card'}
-					<PostCard {post} onOpen={() => goto(`/comments/${post.id}`)} />
+					<PostCard {post} onOpen={() => openPost(post.id, post)} />
 				{:else if $prefs.layout === 'compact'}
-					<PostCompact {post} onOpen={() => goto(`/comments/${post.id}`)} />
+					<PostCompact {post} onOpen={() => openPost(post.id, post)} />
 				{:else}
-					<PostGallery {post} onOpen={() => goto(`/comments/${post.id}`)} />
+					<PostGallery {post} onOpen={() => openPost(post.id, post)} />
 				{/if}
 			{/each}
 

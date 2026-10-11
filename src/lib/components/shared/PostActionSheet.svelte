@@ -15,9 +15,12 @@
 	} from '$lib/stores/postActions';
 	import { hidden } from '$lib/stores/hidden';
 	import { saved } from '$lib/stores/saved';
+	import { privatePosts } from '$lib/stores/privatePosts';
+	import { movePost } from '$lib/stores/offline';
 	import { filters } from '$lib/stores/filters';
 	import { sharePost, copyLink } from '$lib/utils/share';
 	import { saveImage } from '$lib/utils/saveImage';
+	import { copyImage } from '$lib/utils/imageActions';
 	import { pushToast } from '$lib/stores/toast';
 	import { tick as haptic } from '$lib/utils/haptics';
 	import { hiddenMetaFromPost } from '$lib/utils/hiddenMeta';
@@ -95,6 +98,29 @@
 		}
 	}
 
+	// Straight into the private folder, whether or not it was saved before.
+	function handlePrivate() {
+		if (!post) return;
+		const id = post.id;
+		const meta = savedMetaFromPost(post);
+		closePostActions();
+		if ($privatePosts.has(id)) {
+			privatePosts.remove(id);
+			pushToast('Removed from the private folder');
+			return;
+		}
+		const wasSaved = $saved.has(id);
+		if (wasSaved) void movePost(id, 'private');
+		else privatePosts.add(id, meta);
+		pushToast('Saved to the private folder', {
+			duration: 5000,
+			action: {
+				label: 'Undo',
+				onClick: () => (wasSaved ? void movePost(id, 'saved') : privatePosts.remove(id))
+			}
+		});
+	}
+
 	function handleShare() {
 		if (!post) return;
 		const url = permalink();
@@ -112,7 +138,7 @@
 
 	async function handleSave() {
 		if (!post) return;
-		const url = post.image?.url ?? post.preview?.url;
+		const url = post.image?.url ?? post.previewSource?.url ?? post.preview?.url;
 		if (!url) return;
 		closePostActions();
 		pushToast('Saving image…', { key: 'save-image', duration: 10_000 });
@@ -122,6 +148,17 @@
 			replace: true,
 			duration: 2500
 		});
+		if (res.ok) haptic();
+	}
+
+	async function handleCopyImage() {
+		if (!post) return;
+		const url = post.image?.url ?? post.previewSource?.url ?? post.preview?.url;
+		if (!url) return;
+		closePostActions();
+		pushToast('Copying image…', { key: 'copy-image', duration: 10_000 });
+		const res = await copyImage(url);
+		pushToast(res.message, { key: 'copy-image', replace: true, duration: 2500 });
 		if (res.ok) haptic();
 	}
 
@@ -170,7 +207,7 @@
 			pushToast(`Unmuted r/${sub}`);
 		} else {
 			filters.add('subreddits', sub);
-			pushToast(`Muted r/${sub} in subscribed feed`, {
+			pushToast(`Muted r/${sub}`, {
 				duration: 5000,
 				action: { label: 'Undo', onClick: () => filters.remove('subreddits', sub.toLowerCase()) }
 			});
@@ -207,6 +244,12 @@
 				</button>
 			</li>
 			<li role="menuitem">
+				<button class="action" onclick={handlePrivate}>
+					<Icon name="lock" size={22} />
+					<span>{$privatePosts.has(post.id) ? 'Remove from private folder' : 'Save to private folder'}</span>
+				</button>
+			</li>
+			<li role="menuitem">
 				<button class="action" onclick={handleHide}>
 					<Icon name={$hidden.has(post.id) ? 'visibility' : 'visibility_off'} size={22} />
 					<span>{$hidden.has(post.id) ? 'Unhide' : 'Hide'}</span>
@@ -229,6 +272,12 @@
 					<button class="action" onclick={handleSave}>
 						<Icon name="download" size={22} />
 						<span>Save image</span>
+					</button>
+				</li>
+				<li role="menuitem">
+					<button class="action" onclick={handleCopyImage}>
+						<Icon name="content_copy" size={22} />
+						<span>Copy image</span>
 					</button>
 				</li>
 			{/if}

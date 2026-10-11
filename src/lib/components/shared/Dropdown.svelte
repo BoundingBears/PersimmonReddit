@@ -21,6 +21,44 @@
 	let open = $state(false);
 	let triggerEl: HTMLButtonElement | undefined = $state();
 	let rootEl: HTMLDivElement | undefined = $state();
+	let menuEl: HTMLUListElement | undefined = $state();
+
+	// The menu is positioned against the screen, not against the trigger's
+	// container. Placed inside the container it was cut off by any ancestor
+	// that clips (a rounded settings card), and ran off the bottom of the
+	// screen when the trigger sat low. It opens downward if there is room and
+	// upward if not, and scrolls inside itself when it is taller than either.
+	let menuStyle = $state('');
+	const GAP = 4;
+	const MARGIN = 8;
+	function place() {
+		if (!triggerEl) return;
+		const r = triggerEl.getBoundingClientRect();
+		const below = window.innerHeight - r.bottom - MARGIN - GAP;
+		const above = r.top - MARGIN - GAP;
+		const up = below < 220 && above > below;
+		const side = align === 'left' ? `left:${Math.round(r.left)}px` : `right:${Math.round(window.innerWidth - r.right)}px`;
+		const edge = up
+			? `bottom:${Math.round(window.innerHeight - r.top + GAP)}px`
+			: `top:${Math.round(r.bottom + GAP)}px`;
+		menuStyle = `${side};${edge};max-height:${Math.max(96, Math.floor(up ? above : below))}px;min-width:${Math.max(140, Math.round(r.width))}px;transform-origin:${up ? 'bottom' : 'top'} ${align}`;
+	}
+
+	// It does not follow its trigger, so anything that moves the trigger
+	// (scrolling the page, rotating) closes it.
+	$effect(() => {
+		if (!open) return;
+		const close = (e: Event) => {
+			if (menuEl && e.target instanceof Node && menuEl.contains(e.target)) return;
+			open = false;
+		};
+		window.addEventListener('scroll', close, { capture: true, passive: true });
+		window.addEventListener('resize', close);
+		return () => {
+			window.removeEventListener('scroll', close, { capture: true });
+			window.removeEventListener('resize', close);
+		};
+	});
 
 	let normalized = $derived(
 		options.map((o) =>
@@ -32,6 +70,7 @@
 	let currentLabel = $derived(normalized.find((o) => o.value === value)?.label ?? value);
 
 	function toggle() {
+		if (!open) place();
 		open = !open;
 	}
 
@@ -78,7 +117,8 @@
 	{#if open}
 		<ul
 			class="menu"
-			class:left={align === 'left'}
+			bind:this={menuEl}
+			style={menuStyle}
 			role="listbox"
 			transition:scale={{ duration: 120, start: 0.94, opacity: 0, easing: cubicOut }}
 		>
@@ -124,10 +164,10 @@
 		text-transform: lowercase;
 	}
 	.menu {
-		position: absolute;
-		top: calc(100% + 4px);
-		right: 0;
-		min-width: 100%;
+		/* Placed by place(): edges, max-height, min-width, transform-origin. */
+		position: fixed;
+		overflow-y: auto;
+		overscroll-behavior: contain;
 		margin: 0;
 		padding: 4px;
 		background: var(--md-sys-color-surface-container-high);
@@ -136,14 +176,7 @@
 		border-radius: 10px;
 		list-style: none;
 		box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
-		z-index: 50;
-		transform-origin: top right;
-		min-width: 140px;
-	}
-	.menu.left {
-		right: auto;
-		left: 0;
-		transform-origin: top left;
+		z-index: 150;
 	}
 	.option {
 		display: block;

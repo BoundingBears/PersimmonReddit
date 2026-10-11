@@ -29,6 +29,8 @@ import { pushToast } from '$lib/stores/toast';
 import { prefs } from '$lib/stores/prefs';
 import { feedCache } from '$lib/stores/feedCache';
 import { RedditFetch } from './redditFetch';
+import { createOAuth, OAUTH_HOST, type HttpRequest } from './oauth';
+import { Preferences } from '@capacitor/preferences';
 import type { Result } from './types';
 
 // User-Agent escalation ladder. Reddit's edge sometimes blocks one believable
@@ -190,6 +192,22 @@ export function warmupReddit(): void {
 	});
 }
 
+// A forced re-warm reloads reddit.com in the hidden WebView so its JS challenge
+// can run again. It costs a page load, so at most one per minute.
+const REWARM_MIN_INTERVAL_MS = 60_000;
+let lastRewarm = 0;
+async function rewarmOnce(): Promise<boolean> {
+	const now = Date.now();
+	if (now - lastRewarm < REWARM_MIN_INTERVAL_MS) return false;
+	lastRewarm = now;
+	try {
+		await RedditFetch.warmup({ force: true });
+		return true;
+	} catch {
+		return false;
+	}
+}
+
 async function rawGet(url: string, ua: string = UA_LADDER[0]): Promise<RawResponse> {
 	if (IS_NATIVE) {
 		// Fast path: plain okhttp, which (once cookies are warm) Reddit accepts.
@@ -202,7 +220,21 @@ async function rawGet(url: string, ua: string = UA_LADDER[0]): Promise<RawRespon
 		// Self-healing fallback: a real WebView navigation. It warms the cookie
 		// jar as a side effect, so subsequent okhttp requests start succeeding.
 		try {
-			return await rawGetWebView(url);
+			const viaWebView = await rawGetWebView(url);
+			if (!isBlocked(viaWebView)) return viaWebView;
+			// Both transports refused. Until now that stuck for the rest of the
+			// session and only restarting the app cleared it, because nothing
+			// re-ran the warm-up. Do that here, then try again.
+			if (await rewarmOnce()) {
+				try {
+					const again = await rawGetNative(url, ua);
+					if (!isBlocked(again)) return again;
+				} catch {
+					// fall through to one more navigation
+				}
+				return await rawGetWebView(url);
+			}
+			return viaWebView;
 		} catch {
 			return await rawGetNative(url, ua);
 		}
@@ -289,7 +321,7 @@ async function withRetries(
 				// One toast per rate-limit event — `key` dedupes while a same-keyed
 				// toast is still on screen, so a burst of retries doesn't spam.
 				const seconds = Math.max(1, Math.round(wait / 1000));
-				pushToast(`Reddit rate-limited us — retrying in ${seconds}s`, {
+				pushToast(`Reddit rate-limited us. Retrying in ${seconds}s`, {
 					key: 'reddit-rate-limit',
 					duration: Math.min(wait + 500, 6000)
 				});
@@ -330,6 +362,56 @@ function feedCacheTtlMs(): number {
 	return (get(prefs).feedCacheTtlHours || 24) * 3_600_000;
 }
 
+// The sanctioned transport: Reddit's OAuth API with a client ID issued to this
+// app. Null until a build is given one (see oauth.ts for why and for what the
+// anonymous transport below it is living on). When it exists it REPLACES the
+// anonymous transport for reads; the two are never mixed.
+const oauthHttp: HttpRequest = async (req) => {
+	if (IS_NATIVE) {
+		const res = await CapacitorHttp.request({
+			method: req.method,
+			url: req.url,
+			headers: { Accept: 'application/json', ...req.headers },
+			// CapacitorHttp encodes a form body from an object, as rawPost does.
+			data: req.body ? Object.fromEntries(new URLSearchParams(req.body)) : undefined,
+			connectTimeout: CONNECT_TIMEOUT_MS,
+			readTimeout: READ_TIMEOUT_MS,
+			responseType: 'json'
+		});
+		return { status: res.status, data: res.data, headers: res.headers ?? {} };
+	}
+	// A browser sets its own User-Agent and refuses to let a page change it.
+	const { 'User-Agent': _ua, ...headers } = req.headers;
+	const res = await fetch(req.url, { method: req.method, headers, body: req.body, signal: AbortSignal.timeout(READ_TIMEOUT_MS) });
+	const text = await res.text();
+	let data: unknown = null;
+	try {
+		data = text ? JSON.parse(text) : null;
+	} catch {
+		data = text;
+	}
+	return { status: res.status, data, headers: {} };
+};
+const OAUTH_TOKEN_KEY = 'persimmon.oauth';
+const oauth =
+	__REDDIT_CLIENT_ID__ && __REDDIT_APP_OWNER__
+		? createOAuth({
+				clientId: __REDDIT_CLIENT_ID__,
+				owner: __REDDIT_APP_OWNER__,
+				version: __APP_VERSION__,
+				http: oauthHttp,
+				store: {
+					async read() {
+						const { value } = await Preferences.get({ key: OAUTH_TOKEN_KEY });
+						return value ? JSON.parse(value) : null;
+					},
+					async write(v) {
+						await Preferences.set({ key: OAUTH_TOKEN_KEY, value: JSON.stringify(v) });
+					}
+				}
+			})
+		: null;
+
 export async function getJson<T = unknown>(
 	path: string,
 	params?: Record<string, string | number | boolean>
@@ -340,7 +422,9 @@ export async function getJson<T = unknown>(
 	if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
 		return { ok: true, data: cached.data as T };
 	}
-	const r = await withRetries((host, ua) => rawGet(buildUrl(host, path, params), ua));
+	const r = oauth
+		? await oauth.get(buildUrl(OAUTH_HOST, path, params))
+		: await withRetries((host, ua) => rawGet(buildUrl(host, path, params), ua));
 	if (r.ok) {
 		cache.set(key, { at: Date.now(), data: r.data });
 		// Persist first pages so a future offline / blocked cold start has fallback.

@@ -6,8 +6,10 @@ import { Preferences } from '@capacitor/preferences';
 import { browser } from '$app/environment';
 import type { CommentSort, Sort } from '$lib/reddit/types';
 
-export type ThemeName = 'dark' | 'light' | 'amoled' | 'cream' | 'slate' | 'sunset' | 'twilight';
+export type ThemeName = 'dark' | 'light' | 'amoled' | 'cream' | 'persimmon' | 'slate' | 'sunset' | 'twilight';
 export type Layout = 'card' | 'compact' | 'gallery';
+// What asks for a fingerprint: nothing, the private folder, or the whole app.
+export type LockScope = 'off' | 'private' | 'app';
 // Home page can show Reddit's front-page sorted (hot/new/top/rising) OR the
 // user's merged subscribed feed. 'subscribed' is the source-toggle option
 // folded into the same dropdown for simplicity.
@@ -38,7 +40,12 @@ export interface Prefs {
 	lastKnownUpdateVersion: string; // newest release tag a check found newer than this build
 	lastKnownUpdateUrl: string; // release page for lastKnownUpdateVersion
 	lastKnownUpdateApkUrl: string; // direct .apk asset for the in-app installer
+	linkHintShown: boolean; // the one-time "Reddit links can open here" nudge
+	galleryHintShown: boolean; // the one-time "swipe up for the next picture" nudge
 	autoBackup: boolean; // silently write a backup to Documents when the app is backgrounded
+	launchAnimation: boolean; // the orange-and-green sweep on a fresh launch
+	lockScope: LockScope; // see lock.ts
+	lockDelaySec: number; // how long after leaving the app before it locks again; 0 = right away
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -66,7 +73,12 @@ export const DEFAULT_PREFS: Prefs = {
 	lastKnownUpdateVersion: '',
 	lastKnownUpdateUrl: '',
 	lastKnownUpdateApkUrl: '',
-	autoBackup: true
+	linkHintShown: false,
+	galleryHintShown: false,
+	autoBackup: true,
+	launchAnimation: true,
+	lockScope: 'private',
+	lockDelaySec: 0
 };
 
 const STORAGE_KEY = 'persimmon.prefs';

@@ -13,7 +13,7 @@
 
 <div class="stack" aria-live="polite" aria-atomic="true">
 	{#each $toasts as t (t.id)}
-		<div class="toast" in:fly={{ y: 20, duration: 180 }} out:fly={{ y: 20, duration: 140 }}>
+		<div class="toast" class:has-action={!!t.action} in:fly={{ y: 20, duration: 180 }} out:fly={{ y: 20, duration: 140 }}>
 			<button
 				type="button"
 				class="message"
@@ -38,9 +38,12 @@
 <style>
 	.stack {
 		position: fixed;
-		left: 50%;
+		/* Span the screen and centre the toasts inside. Anchoring the stack at
+		   left:50% with a translate left it only HALF the viewport to size
+		   against, so any longer message wrapped into a narrow column. */
+		left: 16px;
+		right: 16px;
 		bottom: calc(80px + env(safe-area-inset-bottom));
-		transform: translateX(-50%);
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -77,6 +80,11 @@
 		border: 0;
 		font: inherit;
 		font-size: var(--type-secondary);
+	}
+	/* With an action beside it, the message reads from the left edge like any
+	   snackbar; on its own it stays centred. */
+	.toast.has-action .message {
+		text-align: left;
 	}
 	.action {
 		flex: none;

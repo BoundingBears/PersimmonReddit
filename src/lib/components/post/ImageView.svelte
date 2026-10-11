@@ -3,14 +3,19 @@
 	import { openImage } from '$lib/stores/imageViewer';
 
 	interface Props {
+		/** What to show inline. */
 		url: string;
+		/** The original, opened in the zoomable viewer. Defaults to `url`. */
+		fullUrl?: string;
+		/** Width times height of the original, when known. */
+		fullPixels?: number;
 		width?: number;
 		height?: number;
 		nsfw?: boolean;
 		alt?: string;
 	}
 
-	let { url, width, height, nsfw = false, alt = '' }: Props = $props();
+	let { url, fullUrl, fullPixels, width, height, nsfw = false, alt = '' }: Props = $props();
 	let revealed = $state(false);
 	let blurred = $derived(nsfw && $prefs.blurNsfw && !revealed);
 
@@ -19,7 +24,7 @@
 			revealed = true;
 			return;
 		}
-		openImage(url, alt);
+		openImage(fullUrl ?? url, alt, url, fullPixels);
 	}
 </script>
 

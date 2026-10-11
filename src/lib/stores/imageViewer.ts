@@ -12,7 +12,15 @@ import { browser } from '$app/environment';
 export type ViewerKind = 'image' | 'video';
 
 export interface ViewerItem {
+	// The original, full-size file. Used for zooming in, saving, sharing.
 	url: string;
+	// A screen-sized copy of the same picture, when one exists. It is what the
+	// post already displayed, so it is in the cache and appears instantly; the
+	// original is only fetched if the user zooms.
+	preview?: string;
+	// Width times height of the original, when known. Decides whether it can
+	// be shown as it is or has to be reduced first.
+	pixels?: number;
 	kind: ViewerKind;
 	alt?: string;
 	caption?: string;
@@ -51,8 +59,8 @@ function open(state: ViewerState) {
 	if (!wasOpen) pushHistoryEntry();
 }
 
-export function openImage(url: string, alt?: string): void {
-	open({ items: [{ url, kind: 'image', alt }], index: 0 });
+export function openImage(url: string, alt?: string, preview?: string, pixels?: number): void {
+	open({ items: [{ url, preview, pixels, kind: 'image', alt }], index: 0 });
 }
 
 export function openVideo(url: string, alt?: string): void {

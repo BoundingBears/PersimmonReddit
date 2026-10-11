@@ -64,7 +64,7 @@
 			{:else if comment.distinguished === 'admin'}
 				<span class="admin">ADMIN</span>
 			{/if}
-			<span class="score">{comment.scoreHidden ? '—' : formatScore(comment.score)}</span>
+			<span class="score">{comment.scoreHidden ? '•' : formatScore(comment.score)}</span>
 			<span class="dot">·</span>
 			<RelativeTime ts={comment.createdUtc} />
 			{#if comment.editedUtc}

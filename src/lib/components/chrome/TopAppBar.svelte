@@ -74,8 +74,12 @@
 		display: flex;
 		align-items: center;
 		gap: 8px;
-		padding: calc(8px + env(safe-area-inset-top)) 8px 8px 4px;
-		min-height: calc(56px + env(safe-area-inset-top));
+		/* A fixed height, not a minimum. As a minimum, a bar with a subtitle grew
+		   to 114px against 109px without one, so the bar and its icons shifted
+		   on every switch between Home, Subs, Search and Settings. */
+		box-sizing: border-box;
+		height: calc(62px + env(safe-area-inset-top));
+		padding: env(safe-area-inset-top) 8px 0 4px;
 		background: var(--md-sys-color-surface);
 		color: var(--md-sys-color-on-surface);
 		border-bottom: 1px solid var(--md-sys-color-outline-variant);

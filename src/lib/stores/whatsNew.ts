@@ -31,10 +31,13 @@ export function closeWhatsNew(): void {
 export function openWhatsNewIfUpdated(): void {
 	const seen = get(prefs).lastSeenVersion;
 	if (__APP_VERSION__ === seen) return;
+	// No recorded version means a fresh install. A first-time user has no
+	// "before" for a changelog to be new against, so just note the version.
+	const firstRun = !seen;
 	prefs.update((p) => ({ ...p, lastSeenVersion: __APP_VERSION__ }));
 	// Persist immediately (not on the 200ms debounce) so killing the app right
 	// after launch — e.g. during a slow cold start — can't lose the write and
 	// re-show the sheet next launch.
 	void prefs.flush();
-	openWhatsNew();
+	if (!firstRun) openWhatsNew();
 }
