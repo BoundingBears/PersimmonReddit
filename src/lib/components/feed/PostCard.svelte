@@ -55,7 +55,6 @@
 			saved.save(id, savedMetaFromPost(post));
 			haptic();
 			pushToast('Saved', {
-				duration: 5000,
 				action: { label: 'Undo', onClick: () => saved.unsave(id) }
 			});
 		}

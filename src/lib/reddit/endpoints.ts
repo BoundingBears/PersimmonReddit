@@ -1,7 +1,9 @@
 // Typed wrappers around Reddit's public JSON endpoints. One function per route.
 // All return Result<T> — callers must handle the error case explicitly.
 
-import { getJson, postForm } from './client';
+import { getJson, getPage, postForm } from './client';
+import { failure, worthRetrying } from './failure';
+import { moreAfter, postsFromPage, threadFromPage } from './pageReader';
 import {
 	parseCommentListing,
 	parsePostListing,
@@ -18,6 +20,7 @@ import type {
 	Listing,
 	Post,
 	Result,
+	ResultMeta,
 	Sort,
 	Subreddit,
 	SubredditRule,
@@ -32,8 +35,17 @@ function defaults(opts?: Record<string, string | number | boolean>) {
 	return { limit: DEFAULT_LIMIT, include_over_18: true, raw_json: 1, ...opts };
 }
 
+// A response that is JSON but not the shape the endpoint promises makes the
+// parser throw. That is a failed request like any other, not an exception for
+// the page to print.
 function map<T, U>(r: Result<T>, fn: (v: T) => U): Result<U> {
-	return r.ok ? { ok: true, data: fn(r.data), meta: r.meta } : r;
+	if (!r.ok) return r;
+	try {
+		return { ok: true, data: fn(r.data), meta: r.meta };
+	} catch (cause) {
+		console.error('unexpected response from Reddit', cause);
+		return { ok: false, error: failure('unreadable', undefined, cause) };
+	}
 }
 
 // ---------- Submissions ----------
@@ -44,8 +56,111 @@ export async function getSubmissions(
 	opts?: { limit?: number; after?: string; t?: TimeRange }
 ): Promise<Result<Listing<Post>>> {
 	const path = subreddit ? `/r/${subreddit}/${sort}.json` : `/${sort}.json`;
-	const r = await getJson<any>(path, defaults(opts));
-	return map(r, parsePostListing);
+	const viaData = async (quick: boolean) => map(await getJson<any>(path, defaults(opts), { quick }), parsePostListing);
+
+	// Reddit refuses the data route for whole subreddits now, and for most
+	// requests past the first page of any feed, while still serving the web
+	// pages for the same things (pageReader.ts). So: one quick try at the data
+	// route, the page if that is refused, and only if the page fails as well
+	// the data route again with everything it has (retries, the saved copy).
+	const key = `${(subreddit ?? '').toLowerCase()}/${sort}`;
+	if ((refusedUntil.get(key) ?? 0) < Date.now()) {
+		const quick = await viaData(true);
+		if (quick.ok) return quick;
+		if (!pageWorthTrying(quick.error)) return worthRetrying(quick.error.kind ?? 'unreadable') ? viaData(false) : quick;
+	}
+	const page = await readFeedPages(key, sort, subreddit, opts);
+	if (page.ok) {
+		refusedUntil.set(key, Date.now() + REFUSAL_MEMORY_MS);
+		return page;
+	}
+	refusedUntil.delete(key);
+	return viaData(false);
+}
+
+// ---------- The same things, read from Reddit's web pages ----------
+
+type Failed = Extract<Result<unknown>, { ok: false }>['error'];
+
+// A feed that was refused a moment ago will be refused again: go to its page
+// directly for a while instead of asking and being told no each time the user
+// scrolls.
+const REFUSAL_MEMORY_MS = 10 * 60_000;
+const refusedUntil = new Map<string, number>();
+// Each feed page's own "load more" address, as last seen on the page.
+const moreAddress = new Map<string, string>();
+
+function pageWorthTrying(error: Failed): boolean {
+	return error.kind === 'refused' || error.kind === 'unreadable';
+}
+
+const PAGE_TIME: Record<TimeRange, string> = {
+	hour: 'HOUR',
+	day: 'DAY',
+	week: 'WEEK',
+	month: 'MONTH',
+	year: 'YEAR',
+	all: 'ALL'
+};
+
+async function readFeedPages(
+	key: string,
+	sort: Sort,
+	subreddit: string | undefined,
+	opts?: { after?: string; t?: TimeRange }
+): Promise<Result<Listing<Post>>> {
+	const pagePath = subreddit ? `/r/${subreddit}/${sort}/` : `/${sort}/`;
+	const readPage = async () => {
+		const html = await getPage(pagePath, opts?.t ? { t: opts.t } : undefined);
+		if (!html.ok) return html;
+		const listing = postsFromPage(html.data);
+		if (listing.more) moreAddress.set(key, listing.more);
+		return { ok: true as const, data: listing };
+	};
+	// Where the page asks for more, when the page itself has not been read:
+	// a feed whose first posts came by the data route and whose next ones were
+	// refused. These two are the addresses the pages use (2026-10).
+	const knownMore = (): string | null => {
+		const t = PAGE_TIME[opts?.t ?? 'day'];
+		if (!subreddit || subreddit.toLowerCase() === 'popular') {
+			return `/svc/shreddit/feeds/popular-feed?after=x&cursor=x&distance=0&sort=${sort.toUpperCase()}&t=${t}`;
+		}
+		if (subreddit.toLowerCase() === 'all') return null;
+		return `/svc/shreddit/community-more-posts/${sort}/?after=x&t=${t}&name=${encodeURIComponent(subreddit)}&feedLength=0`;
+	};
+
+	let first: Listing<Post> = { items: [], after: opts?.after ?? null, before: null };
+	if (!opts?.after) {
+		// The page itself carries only the first three posts.
+		const page = await readPage();
+		if (!page.ok) return page;
+		first = page.data;
+		if (first.items.length === 0) return { ok: false, error: failure('unreadable') };
+		if (!first.after) return { ok: true, data: { items: first.items, after: null, before: null } };
+	}
+	let src = moreAddress.get(key) ?? knownMore();
+	if (!src) {
+		const page = await readPage();
+		src = page.ok ? page.data.more : null;
+		if (!src) return { ok: false, error: failure('unreadable') };
+	}
+	const next = moreAfter(src, first.after as string, first.items.length);
+	const html = await getPage(next.path, next.params);
+	if (!html.ok) {
+		return first.items.length > 0 ? { ok: true, data: { items: first.items, after: first.after, before: null } } : html;
+	}
+	const rest = postsFromPage(html.data);
+	if (rest.more) moreAddress.set(key, rest.more);
+	const seen = new Set(first.items.map((p) => p.id));
+	return {
+		ok: true,
+		data: {
+			items: [...first.items, ...rest.items.filter((p) => !seen.has(p.id))],
+			// No new posts means the end, whatever cursor came with them.
+			after: rest.items.length > 0 ? rest.after : null,
+			before: null
+		}
+	};
 }
 
 // Merge a feed across multiple subreddits without using Reddit's multireddit
@@ -74,7 +189,7 @@ export async function getMergedSubmissions(
 	);
 
 	const lists: Post[][] = [];
-	const failures: string[] = [];
+	const failures: Array<Extract<Result<unknown>, { ok: false }>['error']> = [];
 	let oldestStaleAt: number | undefined;
 	for (let i = 0; i < results.length; i++) {
 		const r = results[i];
@@ -90,7 +205,7 @@ export async function getMergedSubmissions(
 			// top as weeks-old noise.
 			lists.push(r.data.items.filter((p) => !p.stickied));
 		} else {
-			failures.push(subs[i]);
+			failures.push(r.error);
 		}
 	}
 
@@ -112,14 +227,19 @@ export async function getMergedSubmissions(
 	const seen = new Set<string>();
 	const deduped = merged.filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)));
 
-	if (failures.length === subs.length) {
-		return { ok: false, error: { message: `all ${subs.length} subs failed` } };
+	// Nothing loaded: the reason the first one gave stands for all of them
+	// (in practice they fail together and for the same reason).
+	if (failures.length === subs.length) return { ok: false, error: failures[0] };
+	const meta: ResultMeta = {};
+	if (oldestStaleAt) meta.staleAt = oldestStaleAt;
+	if (failures.length > 0) {
+		meta.missing = {
+			failed: failures.length,
+			total: subs.length,
+			refused: failures.some((f) => f.kind === 'refused')
+		};
 	}
-	return {
-		ok: true,
-		data: { after: null, before: null, items: deduped },
-		meta: oldestStaleAt ? { staleAt: oldestStaleAt } : undefined
-	};
+	return { ok: true, data: { after: null, before: null, items: deduped }, meta };
 }
 
 export async function getSubmission(id: string): Promise<Result<Post>> {
@@ -129,10 +249,33 @@ export async function getSubmission(id: string): Promise<Result<Post>> {
 
 export async function getSubmissionComments(
 	id: string,
-	opts?: { sort?: CommentSort; limit?: number; depth?: number }
+	opts?: { sort?: CommentSort; limit?: number; depth?: number },
+	// whole: the complete thread or nothing. Without it, a refused thread comes
+	// back as the handful of comments on the post's web page, flagged in
+	// `meta.partial` so the screen can say what is missing.
+	how: { whole?: boolean } = {}
 ): Promise<Result<{ post: Post; comments: CommentNode[] }>> {
-	const r = await getJson<any>(`/comments/${id}.json`, defaults(opts));
-	return map(r, parseSubmissionAndComments);
+	const viaData = async (quick: boolean) =>
+		map(await getJson<any>(`/comments/${id}.json`, defaults(opts), { quick }), parseSubmissionAndComments);
+	if (how.whole) return viaData(false);
+
+	const quick = await viaData(true);
+	if (quick.ok) return quick;
+	if (!pageWorthTrying(quick.error)) return worthRetrying(quick.error.kind ?? 'unreadable') ? viaData(false) : quick;
+
+	const sort = opts?.sort && opts.sort !== 'best' && opts.sort !== 'confidence' ? { sort: opts.sort } : undefined;
+	const html = await getPage(`/comments/${id}/`, sort);
+	if (html.ok) {
+		const thread = threadFromPage(html.data);
+		if (thread.post) {
+			return {
+				ok: true,
+				data: { post: thread.post, comments: thread.comments },
+				meta: { partial: { shown: thread.comments.length, total: thread.total } }
+			};
+		}
+	}
+	return viaData(false);
 }
 
 // Expand "load more comments" stubs. We *do not* use /api/morechildren even
@@ -156,9 +299,9 @@ export async function getMoreChildren(
 
 	const parsed: CommentNode[] = [];
 	for (const chunk of chunks) {
-		const r = await getJson<any>('/api/info.json', { id: chunk.join(','), raw_json: 1 });
+		const r = map(await getJson<any>('/api/info.json', { id: chunk.join(','), raw_json: 1 }), parseCommentListing);
 		if (!r.ok) return r;
-		parsed.push(...parseCommentListing(r.data));
+		parsed.push(...r.data);
 	}
 	return { ok: true, data: parsed };
 }

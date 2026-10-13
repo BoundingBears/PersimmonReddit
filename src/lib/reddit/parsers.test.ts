@@ -189,3 +189,25 @@ describe('pickRendition', () => {
 		expect(pickRendition(src(3000), [{ url: '', width: 1080, height: 1 }], 1080)?.url).toBe('source'));
 	it('no source', () => expect(pickRendition(undefined, ladder, 1080)).toBeUndefined());
 });
+
+// Reddit answering with something else entirely (a sign-in page, an error
+// envelope) must be a clear failure, not a TypeError from deep in a loop.
+describe('answers that are not the promised shape', () => {
+	const notListings = ['<!DOCTYPE html><html></html>', null, undefined, {}, { data: {} }, { message: 'Forbidden', error: 403 }];
+
+	it('parsePostListing says what is wrong', () => {
+		for (const raw of notListings) {
+			expect(() => parsePostListing(raw as any)).toThrow(/not a list of posts/);
+		}
+	});
+
+	it('parseSubmissionAndComments says what is wrong', () => {
+		for (const raw of [...notListings, [], [{}], [{ data: { children: [] } }, {}]]) {
+			expect(() => parseSubmissionAndComments(raw as any)).toThrow(/not a post with comments/);
+		}
+	});
+
+	it('an empty but well-formed listing is still fine', () => {
+		expect(parsePostListing({ data: { children: [], after: null, before: null } } as any).items).toEqual([]);
+	});
+});

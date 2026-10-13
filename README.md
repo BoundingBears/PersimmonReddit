@@ -58,7 +58,9 @@ Persimmon never logs in to Reddit, so it cannot vote, comment, post or message. 
 
 ## Will it keep working?
 
-That is up to Reddit. Persimmon reads Reddit's public pages the way a logged-out web browser does, with no API key. In 2026 Reddit announced that it is closing access of that kind and ending public API access for third-party apps in March 2027, apart from apps with a written agreement.
+That is up to Reddit. Persimmon reads Reddit the way a logged-out web browser does, with no API key. In 2026 Reddit announced that it is closing access of that kind and ending public API access for third-party apps in March 2027, apart from apps with a written agreement. By October 2026 it was already refusing the data for many subreddits.
+
+Where that happens, Persimmon reads the posts from the same public web page a browser would show you. That is scraping, it is not something Reddit permits, and it can only show what that page carries: for a refused post, the first few comments without their replies.
 
 The app works today. It may stop without notice, and that is outside this project's control. The code already includes the official OAuth route, switched off, for the day Reddit grants this app access.
 

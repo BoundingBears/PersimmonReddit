@@ -54,7 +54,6 @@ export async function saveImage(url: string): Promise<SaveImageResult> {
 		return { ok: true, message: `Saved to Documents/Persimmon/${filename}` };
 	} catch (e) {
 		console.error('saveImage failed', url, e);
-		const msg = e instanceof Error ? e.message : String(e);
-		return { ok: false, message: `Save failed: ${msg}` };
+		return { ok: false, message: "Couldn't save the image" };
 	}
 }

@@ -15,9 +15,12 @@
 //      rejected. okhttp gets fingerprinted and 403'd by Reddit regardless of
 //      the UA we set; the WebView fetch is accepted. (POSTs use CapacitorHttp.)
 //   4. 429 backoff with Retry-After.
-//   5. 403 / 503 fallback to old.reddit.com (sometimes more permissive). When
-//      Reddit blocks us it serves a text/html interstitial instead of JSON; we
-//      detect that so the error says "blocked" rather than a bare status code.
+//   5. A refusal is reported as one. Reddit refuses with a 403 and its
+//      "blocked" page, or by redirecting to a sign-in page that answers 200.
+//      failure.ts tells both apart from data, so neither is parsed, shown to
+//      the user as an exception, or cached. (There used to be a fallback to
+//      old.reddit.com here. Old Reddit is sign-in only now, and that fallback
+//      was where the 200 sign-in pages came from.)
 //   6. In-memory dedupe cache (60s) to avoid re-hitting Reddit when the user
 //      navigates back and forth.
 //   7. Typed Result<T> instead of swallowing errors with `.catch(() => null)`.
@@ -30,6 +33,16 @@ import { prefs } from '$lib/stores/prefs';
 import { feedCache } from '$lib/stores/feedCache';
 import { RedditFetch } from './redditFetch';
 import { createOAuth, OAUTH_HOST, type HttpRequest } from './oauth';
+import {
+	coolDownMs,
+	failure,
+	failureFor,
+	failureFromThrown,
+	isJsonBody,
+	looksLikeHtml,
+	worthRetrying,
+	type Failure
+} from './failure';
 import { Preferences } from '@capacitor/preferences';
 import type { Result } from './types';
 
@@ -45,7 +58,6 @@ const UA_LADDER = [
 	'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
 ];
 const HOST_PRIMARY = 'https://www.reddit.com';
-const HOST_FALLBACK = 'https://old.reddit.com';
 const CACHE_TTL_MS = 60_000;
 const MAX_ATTEMPTS = 3;
 // Hard transport deadlines. Without these, CapacitorHttp/okhttp inherits
@@ -86,14 +98,10 @@ async function sleep(ms: number): Promise<void> {
 	return new Promise((r) => setTimeout(r, ms));
 }
 
-// When Reddit blocks a request it returns its web "blocked" page — a big
-// text/html document — instead of JSON. Detect that so we can report "blocked"
-// (a UA / IP-reputation problem the user can act on) rather than a bare 403.
+// When Reddit blocks a request it returns a web page instead of JSON: its
+// "blocked" page, or a sign-in page. See failure.ts.
 function looksBlocked(res: RawResponse): boolean {
-	const ct = (res.headers['content-type'] ?? res.headers['Content-Type'] ?? '').toLowerCase();
-	if (ct.includes('text/html')) return true;
-	if (typeof res.data === 'string' && /<\s*(!doctype|html)\b/i.test(res.data)) return true;
-	return false;
+	return looksLikeHtml(res.data, res.headers);
 }
 
 interface RawResponse {
@@ -208,20 +216,33 @@ async function rewarmOnce(): Promise<boolean> {
 	}
 }
 
-async function rawGet(url: string, ua: string = UA_LADDER[0]): Promise<RawResponse> {
+// How hard to try for one request.
+//   full:  okhttp, then a WebView navigation, then (at most once a minute) a
+//          re-warm of the cookies and both again.
+//   quick: okhttp, then a WebView navigation. For callers that have another
+//          way to get the same thing and only want to know whether this way
+//          is open (endpoints.ts falls back to reading the web page).
+//   bare:  okhttp alone. For a retry under another browser identity: the
+//          identity is all that differs, and the WebView does not use it, so
+//          navigating again would be the same request a second time.
+type Effort = 'full' | 'quick' | 'bare';
+
+async function rawGet(url: string, ua: string = UA_LADDER[0], effort: Effort = 'full'): Promise<RawResponse> {
 	if (IS_NATIVE) {
 		// Fast path: plain okhttp, which (once cookies are warm) Reddit accepts.
+		let native: RawResponse | null = null;
 		try {
-			const res = await rawGetNative(url, ua);
-			if (!isBlocked(res)) return res;
-		} catch {
+			native = await rawGetNative(url, ua);
+			if (!isBlocked(native) || effort === 'bare') return native;
+		} catch (e) {
+			if (effort === 'bare') throw e;
 			// fall through to the WebView navigation
 		}
 		// Self-healing fallback: a real WebView navigation. It warms the cookie
 		// jar as a side effect, so subsequent okhttp requests start succeeding.
 		try {
 			const viaWebView = await rawGetWebView(url);
-			if (!isBlocked(viaWebView)) return viaWebView;
+			if (!isBlocked(viaWebView) || effort === 'quick') return viaWebView;
 			// Both transports refused. Until now that stuck for the rest of the
 			// session and only restarting the app cleared it, because nothing
 			// re-ran the warm-up. Do that here, then try again.
@@ -235,7 +256,9 @@ async function rawGet(url: string, ua: string = UA_LADDER[0]): Promise<RawRespon
 				return await rawGetWebView(url);
 			}
 			return viaWebView;
-		} catch {
+		} catch (e) {
+			if (native) return native;
+			if (effort === 'quick') throw e;
 			return await rawGetNative(url, ua);
 		}
 	}
@@ -287,69 +310,74 @@ async function rawPost(
 	return { status: res.status, data: parsed, headers };
 }
 
-async function withRetries(
-	doRequest: (host: string, ua: string) => Promise<RawResponse>
-): Promise<Result<unknown>> {
-	let lastErr: { status?: number; message: string } | null = null;
+// Reddit has said "too many requests": nothing goes out until this time.
+// Every request used to find that out for itself, wait, and ask again, so a
+// screen that makes several requests answered a rate limit with more traffic,
+// which is how a short limit turns into a long one.
+let quietUntil = 0;
 
-	// Host fallback (www → old.reddit) and UA escalation are INDEPENDENT axes
-	// over the same attempt budget: `host` advances every retry; `uaIndex` only
-	// advances when a request comes back blocked. So with 3 attempts a blocked
-	// request walks www/UA0 → old/UA1 → old/UA2 without growing the budget.
+function slowDown(): Failure {
+	const seconds = Math.max(1, Math.ceil((quietUntil - Date.now()) / 1000));
+	return {
+		...failure('rate-limited', 429),
+		message: `Reddit asked the app to slow down. Try again in ${seconds} ${seconds === 1 ? 'second' : 'seconds'}.`
+	};
+}
+
+async function withRetries(
+	doRequest: (ua: string, attempt: number) => Promise<RawResponse>,
+	attempts: number = MAX_ATTEMPTS
+): Promise<Result<unknown>> {
+	if (Date.now() < quietUntil) return { ok: false, error: slowDown() };
+	let last: Failure | null = null;
+
 	// get(prefs) returns DEFAULT_PREFS until hydration, so it's always safe here.
 	const escalate = get(prefs).uaEscalationEnabled;
 	let uaIndex = 0;
 
-	for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-		const host = attempt === 0 ? HOST_PRIMARY : HOST_FALLBACK;
+	for (let attempt = 0; attempt < attempts; attempt++) {
 		const ua = UA_LADDER[Math.min(uaIndex, UA_LADDER.length - 1)];
 		try {
-			const res = await doRequest(host, ua);
-			if (res.status >= 200 && res.status < 300) {
-				return { ok: true, data: res.data };
-			}
-			if (res.status === 429) {
-				// Honor Retry-After if present (seconds), but cap it — an
-				// uncapped multi-minute wait is indistinguishable from a freeze.
-				const ra = Number(res.headers['retry-after']);
-				const wait = Math.min(
-					Number.isFinite(ra) ? ra * 1000 : 500 * 2 ** attempt,
-					MAX_RATE_LIMIT_WAIT_MS
-				);
-				const jitter = Math.random() * 250;
-				lastErr = { status: 429, message: 'rate-limited' };
+			const res = await doRequest(ua, attempt);
+			const failed = failureFor(res.status, res.data, res.headers);
+			if (!failed) return { ok: true, data: res.data };
+			last = failed;
+			if (failed.kind === 'rate-limited') {
+				const wait = coolDownMs(res.headers, attempt);
+				quietUntil = Date.now() + wait;
+				last = slowDown();
+				// A short wait is sat out here, once, so the user does not have to
+				// press anything. A long one is the user's to retry: an uncapped
+				// multi-minute wait is indistinguishable from a freeze.
+				if (attempt > 0 || wait > MAX_RATE_LIMIT_WAIT_MS) break;
+				const seconds = Math.max(1, Math.round(wait / 1000));
 				// One toast per rate-limit event — `key` dedupes while a same-keyed
 				// toast is still on screen, so a burst of retries doesn't spam.
-				const seconds = Math.max(1, Math.round(wait / 1000));
-				pushToast(`Reddit rate-limited us. Retrying in ${seconds}s`, {
+				pushToast(`Reddit asked the app to slow down. Trying again in ${seconds}s`, {
 					key: 'reddit-rate-limit',
 					duration: Math.min(wait + 500, 6000)
 				});
-				await sleep(wait + jitter);
+				await sleep(wait + Math.random() * 250);
 				continue;
 			}
-			if (res.status === 403 || res.status === 503) {
-				const blocked = looksBlocked(res);
-				lastErr = {
-					status: res.status,
-					message: blocked ? `Reddit blocked this request (${res.status})` : `reddit ${res.status}`
-				};
-				// On a genuine block, escalate to the next UA identity for the next
-				// attempt (which also moves to the fallback host).
-				if (escalate && blocked && uaIndex < UA_LADDER.length - 1) uaIndex++;
-				continue;
+			if (failed.kind === 'refused') {
+				// The same request gets the same refusal, so it is not repeated.
+				// The one thing left to vary is the browser identity, and only if
+				// the user has left that setting on.
+				if (escalate && uaIndex < UA_LADDER.length - 1) {
+					uaIndex++;
+					continue;
+				}
+				break;
 			}
-			// Other 4xx/5xx: fail fast — no point retrying a 404.
-			return {
-				ok: false,
-				error: { status: res.status, message: `reddit ${res.status}` }
-			};
+			if (!worthRetrying(failed.kind)) break;
+			await sleep(300 * 2 ** attempt);
 		} catch (cause) {
-			lastErr = { message: cause instanceof Error ? cause.message : 'network error' };
+			last = failureFromThrown(cause);
 			await sleep(300 * 2 ** attempt);
 		}
 	}
-	return { ok: false, error: lastErr ?? { message: 'unknown error' } };
+	return { ok: false, error: last ?? failure('offline') };
 }
 
 // Only first-page listing fetches (no pagination cursor) are eligible for the
@@ -414,7 +442,10 @@ const oauth =
 
 export async function getJson<T = unknown>(
 	path: string,
-	params?: Record<string, string | number | boolean>
+	params?: Record<string, string | number | boolean>,
+	// quick: one attempt, no re-warming, no saved copy. The answer to "is the
+	// data route open for this right now", for a caller with a second way.
+	opts: { quick?: boolean } = {}
 ): Promise<Result<T>> {
 	const url = buildUrl(HOST_PRIMARY, path, params);
 	const key = cacheKey('GET', url);
@@ -424,7 +455,9 @@ export async function getJson<T = unknown>(
 	}
 	const r = oauth
 		? await oauth.get(buildUrl(OAUTH_HOST, path, params))
-		: await withRetries((host, ua) => rawGet(buildUrl(host, path, params), ua));
+		: opts.quick
+			? await withRetries((ua) => rawGet(url, ua, 'quick'), 1)
+			: await withRetries((ua, attempt) => rawGet(url, ua, attempt === 0 ? 'full' : 'bare'));
 	if (r.ok) {
 		cache.set(key, { at: Date.now(), data: r.data });
 		// Persist first pages so a future offline / blocked cold start has fallback.
@@ -433,13 +466,58 @@ export async function getJson<T = unknown>(
 	}
 	// Live fetch failed — serve the persistent cache if we have a recent copy,
 	// flagged stale so the UI can show a "showing cached" banner.
-	if (cacheable(params)) {
+	if (cacheable(params) && !opts.quick) {
 		const entry = feedCache.get(key);
-		if (entry && Date.now() - entry.at <= feedCacheTtlMs()) {
+		// isJsonBody: versions up to 1.5.0 could store a sign-in page here.
+		if (entry && isJsonBody(entry.data) && Date.now() - entry.at <= feedCacheTtlMs()) {
 			return { ok: true, data: entry.data as T, meta: { staleAt: entry.at } };
 		}
 	}
 	return r as Result<T>;
+}
+
+/**
+ * One of Reddit's ordinary web pages, as text, for pageReader.ts. A plain page
+ * load with the headers every other request here carries: no retries, and
+ * nothing at all while Reddit has asked for quiet.
+ */
+export async function getPage(
+	path: string,
+	params?: Record<string, string | number | boolean>
+): Promise<Result<string>> {
+	// A browser will not let a page read another site's HTML, so this exists
+	// on the phone only. In `npm run dev` the data route is all there is.
+	if (!IS_NATIVE || oauth) return { ok: false, error: failure('refused') };
+	if (Date.now() < quietUntil) return { ok: false, error: slowDown() };
+	const url = buildUrl(HOST_PRIMARY, path, params);
+	const key = cacheKey('PAGE', url);
+	const cached = cache.get(key);
+	if (cached && Date.now() - cached.at < CACHE_TTL_MS) return { ok: true, data: cached.data as string };
+	try {
+		const res = await CapacitorHttp.get({
+			url,
+			headers: {
+				'User-Agent': UA_LADDER[0],
+				Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+				'Accept-Language': 'en-US,en;q=0.9'
+			},
+			connectTimeout: CONNECT_TIMEOUT_MS,
+			readTimeout: READ_TIMEOUT_MS,
+			responseType: 'text'
+		});
+		if (res.status === 429) {
+			quietUntil = Date.now() + coolDownMs(res.headers ?? {});
+			return { ok: false, error: slowDown() };
+		}
+		if (res.status >= 200 && res.status < 300 && typeof res.data === 'string' && res.data.length > 0) {
+			cache.set(key, { at: Date.now(), data: res.data });
+			return { ok: true, data: res.data };
+		}
+		const failed = failureFor(res.status, null) ?? failure('unreadable', res.status);
+		return { ok: false, error: failed.status && failed.status < 300 ? failure('unreadable', res.status) : failed };
+	} catch (cause) {
+		return { ok: false, error: failureFromThrown(cause) };
+	}
 }
 
 export async function postForm<T = unknown>(
@@ -447,7 +525,7 @@ export async function postForm<T = unknown>(
 	body: Record<string, string>
 ): Promise<Result<T>> {
 	// POSTs (e.g. /api/morechildren) are not cached.
-	const r = await withRetries((host, ua) => rawPost(buildUrl(host, path), body, ua));
+	const r = await withRetries((ua) => rawPost(buildUrl(HOST_PRIMARY, path), body, ua));
 	return r as Result<T>;
 }
 
@@ -563,4 +641,4 @@ export async function fetchRangeNative(
 	}
 }
 
-export const _internals = { UA: UA_LADDER[0], UA_LADDER, HOST_PRIMARY, HOST_FALLBACK };
+export const _internals = { UA: UA_LADDER[0], UA_LADDER, HOST_PRIMARY };

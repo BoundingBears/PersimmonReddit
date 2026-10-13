@@ -1,49 +1,66 @@
 <script lang="ts">
-	// The one page-level error bar. Eight pages each carried their own — some
-	// with a Retry, some without, three different button paddings. Feed-internal
-	// states (load-more failed, caught up, end of feed) live in FeedList; they're
-	// inline in the list flow and a different thing.
+	// The one "this didn't load" block, for a page (or the comments under a
+	// post) with nothing else to show. Feed-internal states (load-more failed,
+	// caught up, end of feed) live in FeedList; they're inline in the list flow
+	// and a different thing.
+	//
+	// It says what did not load, and why in a sentence (failure.ts writes
+	// those), with a way to ask again.
+	import Icon from './Icon.svelte';
+
 	interface Props {
+		title?: string;
 		message: string;
 		onRetry?: () => void;
 	}
 
-	let { message, onRetry }: Props = $props();
+	let { title, message, onRetry }: Props = $props();
 </script>
 
 <div class="error" role="alert">
-	<span class="msg">{message}</span>
+	<span class="icon"><Icon name="cloud_off" size={28} /></span>
+	{#if title}<div class="title">{title}</div>{/if}
+	<div class="msg">{message}</div>
 	{#if onRetry}
-		<button class="retry" onclick={onRetry}>Retry</button>
+		<button class="btn" onclick={onRetry}>Try again</button>
 	{/if}
 </div>
 
 <style>
 	.error {
 		display: flex;
+		flex-direction: column;
 		align-items: center;
-		gap: var(--space-md);
-		padding: var(--space-md) var(--space-lg);
-		background: var(--md-sys-color-error);
-		color: var(--md-sys-color-on-error);
-		font-size: var(--type-body);
-		line-height: 1.4;
+		gap: var(--space-sm);
+		padding: 36px 24px;
+		text-align: center;
+	}
+	.icon {
+		color: var(--md-sys-color-on-surface-variant);
+		line-height: 0;
+	}
+	.title {
+		font-size: var(--type-title);
+		font-weight: var(--weight-title);
+		color: var(--md-sys-color-on-surface);
 	}
 	.msg {
-		flex: 1;
-		min-width: 0;
+		font-size: var(--type-body);
+		line-height: 1.5;
+		color: var(--md-sys-color-on-surface-variant);
+		max-width: 34ch;
 	}
-	.retry {
-		flex: none;
-		padding: 6px 14px;
-		border-radius: 16px;
-		background: var(--md-sys-color-on-error);
-		color: var(--md-sys-color-error);
+	.btn {
+		margin-top: var(--space-sm);
+		padding: 10px 18px;
+		border-radius: 24px;
+		background: var(--md-sys-color-secondary-container);
+		color: var(--md-sys-color-on-secondary-container);
 		font: inherit;
 		font-size: var(--type-secondary);
 		font-weight: var(--weight-title);
 	}
-	.retry:active {
+	.btn:active {
 		opacity: 0.85;
 	}
 </style>

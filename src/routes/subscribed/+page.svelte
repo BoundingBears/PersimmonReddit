@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { reportRefresh, topOf } from '$lib/utils/refreshOutcome';
+	import { UNEXPECTED } from '$lib/reddit/failure';
 	import ErrorState from '$lib/components/shared/ErrorState.svelte';
 	import EmptyState from '$lib/components/shared/EmptyState.svelte';
 	import { onDestroy, onMount, untrack } from 'svelte';
@@ -12,7 +14,7 @@
 	import { getFeedSnapshot, saveFeedSnapshot } from '$lib/stores/feedSnapshot';
 	import { registerLiveSaver } from '$lib/stores/session';
 	import { captureScrollAnchor, restoreScrollAnchor } from '$lib/utils/scrollRestore';
-	import type { Post, Sort } from '$lib/reddit/types';
+	import type { Post, ResultMeta, Sort } from '$lib/reddit/types';
 
 	// Hydrate from the back-nav snapshot. Without this the merged feed is
 	// re-fetched from scratch on every back-navigation: a differently ordered
@@ -26,6 +28,7 @@
 	let loading = $state(false);
 	let error = $state<string | null>(null);
 	let staleAt = $state<number | null>(null);
+	let missing = $state<ResultMeta['missing']>(undefined);
 	let sort = $state<Sort>((snap?.sort as Sort) ?? 'hot');
 	let restored = $state(!!snap);
 	let scrollRestored = $state(false);
@@ -64,10 +67,11 @@
 			}
 			posts = r.data.items;
 			staleAt = r.meta?.staleAt ?? null;
+			missing = r.meta?.missing;
 		} catch (e) {
 			if (gen !== loadGen) return;
 			console.error('subscribed load failed', e);
-			error = e instanceof Error ? e.message : String(e);
+			error = UNEXPECTED;
 		} finally {
 			if (gen === loadGen) loading = false;
 		}
@@ -116,8 +120,13 @@
 	onMount(() => registerLiveSaver(saveSnapshot));
 
 	async function refresh() {
+		const before = topOf(posts);
 		clearCache();
 		await load(true);
+		const failed = !!error && posts.length > 0;
+		if (failed) error = null;
+		reportRefresh(before, posts, failed);
+		if (failed) return;
 		window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
 	}
 
@@ -150,10 +159,10 @@
 		actionLabel="Discover subreddits"
 		actionHref="/subreddits"
 	/>
-{:else if error}
-	<ErrorState message="Couldn't load merged feed ({error})." onRetry={() => load(true)} />
+{:else if error && posts.length === 0}
+	<ErrorState title="Your subscriptions didn't load" message={error} onRetry={() => load(true)} />
 {:else}
-	<FeedList {posts} {loading} hasMore={false} applyFilters {staleAt} onRefresh={refresh} anchorId={snap?.anchorId} />
+	<FeedList {posts} {loading} hasMore={false} applyFilters {staleAt} {missing} onRefresh={refresh} anchorId={snap?.anchorId} />
 {/if}
 
 <style>

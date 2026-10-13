@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { UNEXPECTED } from '$lib/reddit/failure';
 	import ErrorState from '$lib/components/shared/ErrorState.svelte';
 	import { untrack } from 'svelte';
 	import { get } from 'svelte/store';
@@ -76,7 +77,7 @@
 			after = r.data.after;
 		} catch (e) {
 			console.error('subreddits load failed', e);
-			error = e instanceof Error ? e.message : String(e);
+			error = UNEXPECTED;
 		} finally {
 			loading = false;
 		}

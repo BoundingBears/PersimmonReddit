@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { UNEXPECTED } from '$lib/reddit/failure';
 	import { blockedUsers, isBlocked } from '$lib/stores/blockedUsers';
 	import { filters, isMutedSub } from '$lib/stores/filters';
 	import ErrorState from '$lib/components/shared/ErrorState.svelte';
@@ -92,21 +93,24 @@
 		loading = true;
 		error = null;
 		try {
+			// A failed search is an answer, not an exception: its message is
+			// already a sentence (failure.ts).
 			if (tab === 'posts') {
 				const r = await searchPosts(q);
-				if (!r.ok) throw r.error;
-				posts = r.data.items;
+				if (r.ok) posts = r.data.items;
+				else error = r.error.message;
 			} else if (tab === 'subreddits') {
 				const r = await searchSubreddits(q);
-				if (!r.ok) throw r.error;
-				subs = r.data.items;
+				if (r.ok) subs = r.data.items;
+				else error = r.error.message;
 			} else {
 				const r = await searchUsers(q);
-				if (!r.ok) throw r.error;
-				users = r.data.items;
+				if (r.ok) users = r.data.items;
+				else error = r.error.message;
 			}
-		} catch (e: any) {
-			error = e?.message ?? 'search failed';
+		} catch (e) {
+			console.error('search failed', e);
+			error = UNEXPECTED;
 		} finally {
 			loading = false;
 		}

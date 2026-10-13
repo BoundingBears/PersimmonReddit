@@ -74,7 +74,6 @@
 		} else {
 			hidden.hide(id, meta);
 			pushToast('Post is hidden', {
-				duration: 5000,
 				action: { label: 'Undo', onClick: () => hidden.unhide(id) }
 			});
 		}
@@ -92,7 +91,6 @@
 		} else {
 			saved.save(id, meta);
 			pushToast('Saved', {
-				duration: 5000,
 				action: { label: 'Undo', onClick: () => saved.unsave(id) }
 			});
 		}
@@ -113,7 +111,6 @@
 		if (wasSaved) void movePost(id, 'private');
 		else privatePosts.add(id, meta);
 		pushToast('Saved to the private folder', {
-			duration: 5000,
 			action: {
 				label: 'Undo',
 				onClick: () => (wasSaved ? void movePost(id, 'saved') : privatePosts.remove(id))
@@ -143,11 +140,7 @@
 		closePostActions();
 		pushToast('Saving image…', { key: 'save-image', duration: 10_000 });
 		const res = await saveImage(url);
-		pushToast(res.ok ? 'Image saved' : 'Save failed', {
-			key: 'save-image',
-			replace: true,
-			duration: 2500
-		});
+		pushToast(res.ok ? 'Image saved' : 'Save failed', { key: 'save-image', replace: true });
 		if (res.ok) haptic();
 	}
 
@@ -158,7 +151,7 @@
 		closePostActions();
 		pushToast('Copying image…', { key: 'copy-image', duration: 10_000 });
 		const res = await copyImage(url);
-		pushToast(res.message, { key: 'copy-image', replace: true, duration: 2500 });
+		pushToast(res.message, { key: 'copy-image', replace: true });
 		if (res.ok) haptic();
 	}
 
@@ -208,7 +201,6 @@
 		} else {
 			filters.add('subreddits', sub);
 			pushToast(`Muted r/${sub}`, {
-				duration: 5000,
 				action: { label: 'Undo', onClick: () => filters.remove('subreddits', sub.toLowerCase()) }
 			});
 		}

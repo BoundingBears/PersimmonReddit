@@ -107,7 +107,7 @@
 				: r === 'up-to-date'
 					? "You're on the latest version"
 					: "Couldn't reach GitHub to check",
-			{ key: 'update', replace: true, duration: 2500 }
+			{ key: 'update', replace: true }
 		);
 		checkingUpdate = false;
 	}

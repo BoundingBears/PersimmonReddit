@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { reportRefresh, topOf } from '$lib/utils/refreshOutcome';
+	import { UNEXPECTED } from '$lib/reddit/failure';
 	import ErrorState from '$lib/components/shared/ErrorState.svelte';
 	import EmptyState from '$lib/components/shared/EmptyState.svelte';
 	import { onDestroy, onMount, untrack } from 'svelte';
@@ -13,7 +15,7 @@
 	import { getFeedSnapshot, saveFeedSnapshot } from '$lib/stores/feedSnapshot';
 	import { registerLiveSaver } from '$lib/stores/session';
 	import { captureScrollAnchor, restoreScrollAnchor } from '$lib/utils/scrollRestore';
-	import type { Post, Sort } from '$lib/reddit/types';
+	import type { Post, ResultMeta, Sort } from '$lib/reddit/types';
 
 	let groupName = $derived($page.params.name ?? '');
 	let group = $derived($groups.find((g) => g.name.toLowerCase() === groupName.toLowerCase()));
@@ -29,6 +31,7 @@
 	let loading = $state(false);
 	let error = $state<string | null>(null);
 	let staleAt = $state<number | null>(null);
+	let missing = $state<ResultMeta['missing']>(undefined);
 	let sort = $state<Sort>((initialSnap?.sort as Sort) ?? 'hot');
 	let restored = $state(!!initialSnap);
 	let scrollRestored = $state(false);
@@ -71,10 +74,11 @@
 			}
 			posts = r.data.items;
 			staleAt = r.meta?.staleAt ?? null;
+			missing = r.meta?.missing;
 		} catch (e) {
 			if (gen !== loadGen) return;
 			console.error('group feed load failed', groupName, e);
-			error = e instanceof Error ? e.message : String(e);
+			error = UNEXPECTED;
 		} finally {
 			if (gen === loadGen) loading = false;
 		}
@@ -123,8 +127,13 @@
 	onMount(() => registerLiveSaver(saveSnapshot));
 
 	async function refresh() {
+		const before = topOf(posts);
 		clearCache();
 		await load(true);
+		const failed = !!error && posts.length > 0;
+		if (failed) error = null;
+		reportRefresh(before, posts, failed);
+		if (failed) return;
 		window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
 	}
 
@@ -153,10 +162,10 @@
 		actionLabel="Manage groups"
 		actionHref="/settings"
 	/>
-{:else if error}
-	<ErrorState message="Couldn't load this group ({error})." onRetry={() => load(true)} />
+{:else if error && posts.length === 0}
+	<ErrorState title="This group didn't load" message={error} onRetry={() => load(true)} />
 {:else}
-	<FeedList {posts} {loading} hasMore={false} applyFilters {staleAt} onRefresh={refresh} anchorId={initialSnap?.anchorId} />
+	<FeedList {posts} {loading} hasMore={false} applyFilters {staleAt} {missing} onRefresh={refresh} anchorId={initialSnap?.anchorId} />
 {/if}
 
 <style>

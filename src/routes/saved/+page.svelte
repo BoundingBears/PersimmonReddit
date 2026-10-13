@@ -58,14 +58,12 @@
 			privatePosts.remove(entry.id);
 			const { id, savedAt, ...meta } = entry;
 			pushToast('Removed from the private folder', {
-				duration: 5000,
 				action: { label: 'Undo', onClick: () => privatePosts.add(id, meta, savedAt) }
 			});
 			return;
 		}
 		saved.unsave(entry.id);
 		pushToast('Removed from saved', {
-			duration: 5000,
 			action: { label: 'Undo', onClick: () => saved.save(entry.id, entry) }
 		});
 	}
@@ -74,7 +72,6 @@
 		haptic();
 		await movePost(entry.id, to);
 		pushToast(to === 'private' ? 'Moved to the private folder' : 'Moved to Saved', {
-			duration: 5000,
 			action: { label: 'Undo', onClick: () => void movePost(entry.id, to === 'private' ? 'saved' : 'private') }
 		});
 	}

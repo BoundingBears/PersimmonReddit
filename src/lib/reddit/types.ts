@@ -1,6 +1,8 @@
 // Normalized shapes consumed by the UI. Raw Reddit JSON shapes (which are wide
 // and undocumented) are kept loose and live in parsers.ts.
 
+import type { FailureKind } from './failure';
+
 export type PostKind = 'text' | 'image' | 'video' | 'gallery' | 'embed' | 'link' | 'crosspost';
 
 export interface MediaImage {
@@ -149,13 +151,18 @@ export interface Listing<T> {
 // explicitly instead of getting a silent `null` back.
 export type Result<T> =
 	| { ok: true; data: T; meta?: ResultMeta }
-	| { ok: false; error: { status?: number; message: string; cause?: unknown } };
+	| { ok: false; error: { status?: number; message: string; cause?: unknown; kind?: FailureKind } };
 
 // Optional metadata on a successful result. `staleAt` is set when the data came
 // from the persistent feed cache because the live fetch failed (offline/blocked)
 // — the UI shows a "showing cached" banner.
 export interface ResultMeta {
 	staleAt?: number;
+	// A feed merged from several subreddits, some of which did not load.
+	missing?: { failed: number; total: number; refused: boolean };
+	// A thread read from the post's web page because the data route was
+	// refused: only the first top-level comments, out of `total`.
+	partial?: { shown: number; total: number };
 }
 
 export type Sort = 'hot' | 'new' | 'top' | 'rising' | 'controversial' | 'best';

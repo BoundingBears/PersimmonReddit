@@ -35,7 +35,6 @@
 		hidden.unhide(entry.id);
 		haptic();
 		pushToast('Unhidden', {
-			duration: 5000,
 			action: { label: 'Re-hide', onClick: () => hidden.hide(entry.id, entry) }
 		});
 	}

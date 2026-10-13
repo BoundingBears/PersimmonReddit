@@ -10,6 +10,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.5.1',
+		items: [
+			'🚧 Subreddits and comments that Reddit refuses now load another way, and failures are explained in plain words',
+			'↩️ Back returns to exactly where you were, even if the feed changed underneath',
+			'💬 Snackbars are all the same bar now, and you can swipe them away'
+		]
+	},
+	{
 		version: '1.5.0',
 		items: [
 			'⚡ Posts open instantly, Back returns to your spot, and the app reopens where you left off',

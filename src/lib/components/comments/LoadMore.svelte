@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { UNEXPECTED } from '$lib/reddit/failure';
 	import Icon from '$lib/components/shared/Icon.svelte';
 	import { getMoreChildren } from '$lib/reddit/endpoints';
 	import type { CommentNode, MoreStub } from '$lib/reddit/types';
@@ -45,7 +46,7 @@
 			onLoaded(replacement);
 		} catch (e) {
 			console.error('morechildren load failed', e);
-			error = e instanceof Error ? e.message : String(e);
+			error = UNEXPECTED;
 		} finally {
 			loading = false;
 		}

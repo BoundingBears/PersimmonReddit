@@ -27,6 +27,14 @@ const MAX_BYTES = 100_000;
 
 const internal = writable<Map<string, FeedCacheEntry>>(new Map());
 
+// A listing is always a JSON object. Up to 1.5.0 a sign-in page Reddit had
+// answered with (a string of HTML) could be stored here as the "last good"
+// copy, and was then served back on every retry. Nothing but an object goes
+// in, and anything else already stored is dropped when the cache is read.
+function usable(data: unknown): boolean {
+	return data !== null && typeof data === 'object';
+}
+
 function evictIfNeeded(m: Map<string, FeedCacheEntry>): Map<string, FeedCacheEntry> {
 	if (m.size <= MAX_ENTRIES) return m;
 	const sorted = [...m.entries()].sort((a, b) => a[1].at - b[1].at);
@@ -40,6 +48,7 @@ export const feedCache = {
 		return get(internal).get(key);
 	},
 	put(key: string, data: unknown): void {
+		if (!usable(data)) return;
 		let bytes = 0;
 		try {
 			bytes = JSON.stringify(data).length;
@@ -84,6 +93,7 @@ async function writeBack(): Promise<void> {
 
 async function load(): Promise<void> {
 	if (!browser) return;
+	let dropped = false;
 	try {
 		const { value } = await Preferences.get({ key: STORAGE_KEY });
 		if (value) {
@@ -92,7 +102,8 @@ async function load(): Promise<void> {
 			if (Array.isArray(parsed)) {
 				for (const item of parsed) {
 					if (Array.isArray(item) && typeof item[0] === 'string' && item[1] && typeof item[1].at === 'number') {
-						map.set(item[0], { at: item[1].at, data: item[1].data });
+						if (usable(item[1].data)) map.set(item[0], { at: item[1].at, data: item[1].data });
+						else dropped = true;
 					}
 				}
 			}
@@ -108,6 +119,8 @@ async function load(): Promise<void> {
 		if (ready) void writeBack();
 	});
 	ready = true;
+	// Write the cleaned cache back, or the bad entries return on next launch.
+	if (dropped) void writeBack();
 }
 
 export const feedCacheReady = load();

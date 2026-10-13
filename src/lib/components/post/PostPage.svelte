@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { UNEXPECTED } from '$lib/reddit/failure';
 	// One post and its comments, with its own app bar.
 	//
 	// Used two ways. As the /comments/[id] route it is the page, and scrolls
@@ -17,6 +18,7 @@
 	import { prefs } from '$lib/stores/prefs';
 	import { readPosts } from '$lib/stores/readPosts';
 	import { readOffline, storeOffline, type OfflineCopy } from '$lib/stores/offline';
+	import { pushToast } from '$lib/stores/toast';
 	import Icon from '$lib/components/shared/Icon.svelte';
 	import RelativeTime from '$lib/components/shared/RelativeTime.svelte';
 	import { consumeRestoredScroll, peekRestoredScroll } from '$lib/stores/session';
@@ -49,6 +51,10 @@
 	// is when the user needs telling that this is not the live post.
 	let copyAt = $state<number | null>(null);
 	let offline = $state(false);
+	// Reddit refused the thread and these comments are the few on the post's
+	// web page (endpoints.ts): how many are shown, out of how many.
+	let partial = $state<{ shown: number; total: number } | null>(null);
+	let askingForAll = $state(false);
 
 	function showCopy(copy: OfflineCopy) {
 		post = copy.post;
@@ -118,6 +124,9 @@
 			}
 			if (!r.ok) {
 				error = r.error.message;
+				// The post itself is on screen (the list had it) even though its
+				// comments are not, so it has been read.
+				if (post && $prefs.markPostsRead) readPosts.mark(id);
 				return;
 			}
 			// Patch a post seeded from a list; replace anything else, including
@@ -127,8 +136,13 @@
 			comments = r.data.comments;
 			copyAt = null;
 			offline = false;
-			// Does nothing unless the post is saved or in the private folder.
-			void storeOffline(id, r.data);
+			partial = r.meta?.partial ?? null;
+			// Does nothing unless the post is saved or in the private folder. Not
+			// a partial thread: it would replace a complete saved copy.
+			if (!partial) void storeOffline(id, r.data);
+			// The few comments from the page are on screen now. Ask once more,
+			// properly, for the whole thread, and swap it in if it comes.
+			else void askForAll(true);
 			if ($prefs.markPostsRead) readPosts.mark(id);
 			const first = !loadedOnce;
 			loadedOnce = true;
@@ -145,7 +159,7 @@
 		} catch (e) {
 			if (gen !== loadGen || destroyed) return;
 			console.error('post detail load failed', id, e);
-			error = e instanceof Error ? e.message : String(e);
+			error = UNEXPECTED;
 		} finally {
 			if (gen === loadGen) loading = false;
 		}
@@ -156,6 +170,29 @@
 		sort;
 		untrack(() => load());
 	});
+
+	// The whole thread, by the data route with everything it has. Slow when
+	// Reddit is refusing (many seconds), which is why opening a post does not
+	// wait for it. `quiet`: the automatic attempt, which says nothing if it
+	// fails; the note under the comments already tells the user where they stand.
+	async function askForAll(quiet = false) {
+		if (askingForAll) return;
+		askingForAll = true;
+		const gen = loadGen;
+		try {
+			const r = await getSubmissionComments(id, { sort }, { whole: true });
+			if (gen !== loadGen || destroyed) return;
+			if (!r.ok || r.meta?.staleAt) {
+				if (!quiet) pushToast('Reddit refused the rest of the thread.', { key: 'thread-refused' });
+				return;
+			}
+			comments = r.data.comments;
+			partial = null;
+			void storeOffline(id, r.data);
+		} finally {
+			askingForAll = false;
+		}
+	}
 
 	let pullDistance = $state(0);
 	let refreshing = $state(false);
@@ -181,10 +218,6 @@
 	{/snippet}
 </TopAppBar>
 
-{#if error}
-	<ErrorState message={error} onRetry={load} />
-{/if}
-
 <div class="ptr" use:pullToRefresh={{ onRefresh: load, onState: onPullState, scrollTop }}>
 	<PullIndicator distance={pullDistance} {refreshing} />
 	{#if post && blockedNsfw}
@@ -206,12 +239,36 @@
 			</div>
 		{/if}
 		<PostDetail {post} />
-		{#if loading && !loadedOnce}
-			<!-- The post came from the list; only its comments are still on the way. -->
-			<PostSkeleton commentsOnly />
-		{:else}
-			<CommentTree bind:comments linkFullId={post.fullId} opAuthor={post.author} />
+		<!-- The post came from the list, so it is here whether or not its
+		     comments arrive. When they do not, say so where they would be. -->
+		{#if error}
+			<ErrorState
+				title="The comments didn't load"
+				message={error}
+				onRetry={load}
+			/>
 		{/if}
+		{#if loading && !loadedOnce}
+			<PostSkeleton commentsOnly />
+		{:else if loadedOnce}
+			<CommentTree bind:comments linkFullId={post.fullId} opAuthor={post.author} />
+			{#if partial && !error}
+				<div class="partial-note">
+					<span>
+						{#if partial.total > partial.shown}
+							Reddit refused the full thread. These are the first {partial.shown} of {partial.total.toLocaleString()} comments, without replies.
+						{:else}
+							Reddit refused the full thread. These comments are shown without their replies.
+						{/if}
+					</span>
+					<button onclick={() => askForAll()} disabled={askingForAll}>
+						{askingForAll ? 'Asking for the rest…' : 'Ask again for all'}
+					</button>
+				</div>
+			{/if}
+		{/if}
+	{:else if error}
+		<ErrorState title="This post didn't load" message={error} onRetry={load} />
 	{:else if loading}
 		<PostSkeleton />
 	{/if}
@@ -222,6 +279,31 @@
 		position: relative;
 		overscroll-behavior-y: contain;
 		touch-action: pan-y;
+	}
+	.partial-note {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 10px;
+		margin: 8px 8px 24px;
+		padding: 14px 16px;
+		border-radius: 12px;
+		background: var(--md-sys-color-surface-container-high);
+		color: var(--md-sys-color-on-surface-variant);
+		font-size: var(--type-secondary);
+		line-height: 1.45;
+		text-align: center;
+	}
+	.partial-note button {
+		padding: 8px 16px;
+		border-radius: 20px;
+		background: var(--md-sys-color-secondary-container);
+		color: var(--md-sys-color-on-secondary-container);
+		font: inherit;
+		font-weight: var(--weight-title);
+	}
+	.partial-note button:disabled {
+		opacity: 0.6;
 	}
 	.offline-note {
 		display: flex;

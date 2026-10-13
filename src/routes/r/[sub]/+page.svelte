@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { UNEXPECTED } from '$lib/reddit/failure';
 	import ErrorState from '$lib/components/shared/ErrorState.svelte';
 	import { onDestroy, onMount, untrack } from 'svelte';
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
@@ -17,6 +18,7 @@
 	import { getFeedSnapshot, saveFeedSnapshot } from '$lib/stores/feedSnapshot';
 	import { filters, isMixedFeed, isMutedSub } from '$lib/stores/filters';
 	import { pushToast } from '$lib/stores/toast';
+	import { reportRefresh, topOf } from '$lib/utils/refreshOutcome';
 	import { registerLiveSaver } from '$lib/stores/session';
 	import { captureScrollAnchor, restoreScrollAnchor } from '$lib/utils/scrollRestore';
 	import type { Post, Sort } from '$lib/reddit/types';
@@ -84,7 +86,7 @@
 		} catch (e) {
 			if (gen !== loadGen) return;
 			console.error('r/[sub] load failed', sub, e);
-			error = e instanceof Error ? e.message : String(e);
+			error = UNEXPECTED;
 		} finally {
 			if (gen === loadGen) loading = false;
 		}
@@ -164,13 +166,13 @@
 	// The posts already on screen stay there until the new ones arrive. If
 	// they never do, they are still better than an empty page.
 	async function refresh() {
+		const before = topOf(posts);
 		clearCache();
 		await load(true, true);
-		if (error && posts.length > 0) {
-			error = null;
-			pushToast("Couldn't refresh. Showing what was already loaded.", { key: 'refresh-failed' });
-			return;
-		}
+		const failed = !!error && posts.length > 0;
+		if (failed) error = null;
+		reportRefresh(before, posts, failed);
+		if (failed) return;
 		window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
 	}
 </script>
@@ -187,8 +189,8 @@
 	{/snippet}
 </TopAppBar>
 
-{#if error}
-	<ErrorState message="Couldn't load r/{sub} ({error})." onRetry={() => load(true)} />
+{#if error && posts.length === 0}
+	<ErrorState title="r/{sub} didn't load" message={error} onRetry={() => load(true)} />
 {/if}
 
 {#if muted}

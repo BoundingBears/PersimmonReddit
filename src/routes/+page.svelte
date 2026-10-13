@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { UNEXPECTED } from '$lib/reddit/failure';
 	import ErrorState from '$lib/components/shared/ErrorState.svelte';
 	import EmptyState from '$lib/components/shared/EmptyState.svelte';
 	import { onDestroy, onMount, untrack } from 'svelte';
@@ -12,11 +13,13 @@
 	import { subscribed, subscribedReady } from '$lib/stores/subscribed';
 	import { getFeedSnapshot, saveFeedSnapshot } from '$lib/stores/feedSnapshot';
 	import { registerLiveSaver } from '$lib/stores/session';
-	import { pushToast } from '$lib/stores/toast';
+	import { reportRefresh, topOf } from '$lib/utils/refreshOutcome';
 	import { captureScrollAnchor, restoreScrollAnchor } from '$lib/utils/scrollRestore';
-	import type { Listing, Post, Sort } from '$lib/reddit/types';
+	import type { Listing, Post, ResultMeta, Sort } from '$lib/reddit/types';
 
 	let staleAt = $state<number | null>(null);
+	// Subscribed view: how many of the subreddits Reddit did not hand over.
+	let missing = $state<ResultMeta['missing']>(undefined);
 
 	const SNAPSHOT_KEY = 'home';
 
@@ -67,6 +70,7 @@
 		try {
 			let listing: Listing<Post> | null = null;
 			let stale: number | null = null;
+			let gaps: ResultMeta['missing'] = undefined;
 			if (v === 'subscribed') {
 				const subs = $subscribed.map((s) => s.name);
 				if (subs.length === 0) {
@@ -84,6 +88,7 @@
 				}
 				listing = r.data;
 				stale = r.meta?.staleAt ?? null;
+				gaps = r.meta?.missing;
 			} else {
 				const r = await getSubmissions(
 					v as Sort,
@@ -99,6 +104,7 @@
 				stale = r.meta?.staleAt ?? null;
 			}
 			staleAt = stale;
+			if (reset) missing = gaps;
 			if (reset) {
 				posts = listing.items;
 			} else {
@@ -112,7 +118,7 @@
 		} catch (e) {
 			if (gen !== loadGen) return;
 			console.error('home load failed', e);
-			error = e instanceof Error ? e.message : String(e);
+			error = UNEXPECTED;
 		} finally {
 			if (gen === loadGen) loading = false;
 		}
@@ -205,13 +211,13 @@
 	// The posts already on screen stay there until the new ones arrive. If
 	// they never do, they are still better than an empty page.
 	async function refresh() {
+		const before = topOf(posts);
 		clearCache();
 		await load(true, true);
-		if (error && posts.length > 0) {
-			error = null;
-			pushToast("Couldn't refresh. Showing what was already loaded.", { key: 'refresh-failed' });
-			return;
-		}
+		const failed = !!error && posts.length > 0;
+		if (failed) error = null;
+		reportRefresh(before, posts, failed);
+		if (failed) return;
 		window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
 	}
 
@@ -228,8 +234,11 @@
 	{/snippet}
 </TopAppBar>
 
-{#if error}
-	<ErrorState message="Couldn't reach Reddit ({error})." onRetry={() => load(true)} />
+<!-- Only when there is nothing else to show. With posts on screen a failed
+     "load more" is reported at the end of the list, where the user is: a bar
+     added up here moved the whole feed down under their thumb. -->
+{#if error && posts.length === 0}
+	<ErrorState title="Your feed didn't load" message={error} onRetry={() => load(true)} />
 {/if}
 
 {#if $prefs.homeView === 'subscribed' && $subscribed.length === 0}
@@ -247,6 +256,7 @@
 		applyFilters
 		anchorId={snap?.anchorId}
 		{staleAt}
+		{missing}
 		{error}
 		onLoadMore={() => load(false)}
 		onRefresh={refresh}

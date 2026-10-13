@@ -37,7 +37,7 @@
 	} from '$lib/stores/lock';
 	import { isPrivate, privatePosts } from '$lib/stores/privatePosts';
 	import { introPlaying, mirrorIntroPref, shouldPlayIntro } from '$lib/utils/bootIntro';
-	import { seedFor } from '$lib/stores/postLayer';
+	import { noteNavigation, seedFor } from '$lib/stores/postLayer';
 	import { setActiveScroller } from '$lib/utils/scroller';
 	import PostActionSheet from '$lib/components/shared/PostActionSheet.svelte';
 	import WhatsNew from '$lib/components/shared/WhatsNew.svelte';
@@ -149,6 +149,7 @@
 			mainEl?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 170, easing: 'ease-out' });
 		}
 		consumeEdgeSwipeBackCleanup();
+		noteNavigation();
 		// Mirror the back stack so it can be rebuilt after the app is killed.
 		// Arriving back on a list that had a post open over it restores that
 		// layer too, and the entry is the post's, not the list's.
@@ -276,7 +277,7 @@
 		setTimeout(() => {
 			pushToast('Reddit links from your browser can open in Persimmon', {
 				key: 'link-hint',
-				duration: 10_000,
+				duration: 8000,
 				action: { label: 'Set up', onClick: () => void openLinkHandlingSettings() }
 			});
 		}, 2500);

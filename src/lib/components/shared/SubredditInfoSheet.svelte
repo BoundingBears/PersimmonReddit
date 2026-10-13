@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { UNEXPECTED } from '$lib/reddit/failure';
 	import { onMount } from 'svelte';
 	import { get } from 'svelte/store';
 	import { fade } from 'svelte/transition';
@@ -51,7 +52,8 @@
 				if (rulesRes.ok) rules = rulesRes.data;
 			})
 			.catch((e) => {
-				error = e instanceof Error ? e.message : String(e);
+				console.error('subreddit info failed', e);
+				error = UNEXPECTED;
 			})
 			.finally(() => {
 				loading = false;

@@ -269,9 +269,17 @@ export function parsePost(raw: any): Post {
 	return post;
 }
 
+// The parsers below say so, in words, when Reddit's answer is not the shape
+// the endpoint promises. endpoints.ts turns that into a failed request.
+function childrenOf(raw: any, what: string): any[] {
+	const children = raw?.data?.children;
+	if (!Array.isArray(children)) throw new Error(`Reddit's answer is not a ${what}`);
+	return children;
+}
+
 export function parsePostListing(raw: RawListing<any>): Listing<Post> {
 	const items: Post[] = [];
-	for (const child of raw.data.children) {
+	for (const child of childrenOf(raw, 'list of posts')) {
 		if (child.kind !== 't3') continue;
 		// Drop NSFW posts upstream on iOS so they never reach any feed,
 		// search result, or user-overview surface. App Store policy.
@@ -336,7 +344,9 @@ export function parseCommentListing(raw: any): CommentNode[] {
 
 // /comments/<id>.json returns a 2-element array: [post-listing, comment-listing]
 export function parseSubmissionAndComments(raw: any): { post: Post; comments: CommentNode[] } {
-	const post = parsePost(raw[0].data.children[0].data);
+	const first = Array.isArray(raw) ? childrenOf(raw[0], 'post with comments')[0]?.data : undefined;
+	if (!first) throw new Error("Reddit's answer is not a post with comments");
+	const post = parsePost(first);
 	const comments = parseCommentListing(raw[1]);
 	return { post, comments };
 }

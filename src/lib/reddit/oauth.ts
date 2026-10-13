@@ -25,6 +25,7 @@
 // hours and deleted posts removed (offline.ts keeps saved posts indefinitely),
 // the app needs a privacy policy, and it may not show ads.
 
+import { failure, failureFor, failureFromThrown } from './failure';
 import type { Result } from './types';
 
 export const OAUTH_HOST = 'https://oauth.reddit.com';
@@ -149,12 +150,11 @@ export function createOAuth(options: OAuthOptions) {
 					await forget();
 					continue;
 				}
-				if (res.status === 429) return { ok: false, error: { status: 429, message: 'rate-limited' } };
-				return { ok: false, error: { status: res.status, message: `reddit ${res.status}` } };
+				return { ok: false, error: failureFor(res.status, res.data, res.headers) ?? failure('unreadable', res.status) };
 			}
 			return { ok: false, error: { status: 401, message: 'Reddit rejected the app token' } };
 		} catch (cause) {
-			return { ok: false, error: { message: cause instanceof Error ? cause.message : 'network error' } };
+			return { ok: false, error: failureFromThrown(cause) };
 		}
 	}
 

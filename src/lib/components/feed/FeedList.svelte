@@ -26,6 +26,8 @@
 		applyFilters?: boolean;
 		// Set when these posts came from the persistent cache (live fetch failed).
 		staleAt?: number | null;
+		// A merged feed that is short some of its subreddits (endpoints.ts).
+		missing?: { failed: number; total: number; refused: boolean };
 		// Last fetch error message. With posts already shown it means a
 		// load-more failed (e.g. flaky deep page) — surfaced as a bottom retry.
 		error?: string | null;
@@ -42,6 +44,7 @@
 		hasMore = false,
 		applyFilters = false,
 		staleAt = null,
+		missing,
 		error = null,
 		onLoadMore,
 		onRefresh,
@@ -226,11 +229,17 @@
 	});
 	$effect(() => {
 		// Don't paginate on an empty list (an all-read page would loop forever)
-		// or before the progressive render has caught up.
+		// or before the progressive render has caught up. And not after a
+		// failure: `loading` going back to false re-runs this effect, so a
+		// failed page was asked for again at once, and again, for as long as
+		// the end of the list stayed on screen. The list sat on "Loading…" and
+		// Reddit got the same refused request several times a second. After a
+		// failure the next attempt is the user's, with the Retry button.
 		if (
 			sentinelVisible &&
 			hasMore &&
 			!loading &&
+			!error &&
 			onLoadMore &&
 			visible.length > 0 &&
 			end >= visible.length
@@ -247,6 +256,16 @@
 		<div class="stale-banner">
 			<Icon name="cloud_off" size={16} />
 			<span>Showing cached posts: couldn't reach Reddit. Pull to refresh.</span>
+		</div>
+	{/if}
+	{#if missing && visible.length > 0}
+		<div class="stale-banner">
+			<Icon name="cloud_off" size={16} />
+			<span>
+				{missing.failed} of your {missing.total} subreddits didn't load{missing.refused
+					? ': Reddit refused them.'
+					: '.'}
+			</span>
 		</div>
 	{/if}
 
@@ -269,8 +288,11 @@
 			{:else if !refreshing && error && visible.length > 0}
 				<div class="status load-error">
 					<span>Couldn't load more posts.</span>
+					<span class="why">{error}</span>
 					<button class="retry" onclick={() => onLoadMore?.()}>Retry</button>
 				</div>
+			{:else if !refreshing && visible.length === 0 && error}
+				<!-- The page says what went wrong (ErrorState); "No posts" would be untrue. -->
 			{:else if !refreshing && visible.length === 0}
 				{#if caughtUp}
 					<div class="status empty caught-up">
@@ -331,6 +353,12 @@
 		align-items: center;
 		gap: 10px;
 		padding: 20px 16px 28px;
+	}
+	.load-error .why {
+		margin-top: -6px;
+		max-width: 34ch;
+		font-size: var(--type-meta);
+		line-height: 1.4;
 	}
 	.retry {
 		padding: 8px 18px;

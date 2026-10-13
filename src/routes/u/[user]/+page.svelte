@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { UNEXPECTED } from '$lib/reddit/failure';
 	import { undoable } from '$lib/utils/undoable';
 	import { pushToast } from '$lib/stores/toast';
 	import Icon from '$lib/components/shared/Icon.svelte';
@@ -43,6 +44,7 @@
 	async function loadFeed(reset = false) {
 		if (loading) return;
 		loading = true;
+		error = null;
 		const opts = reset ? undefined : { after: after ?? undefined };
 		try {
 			const r = await getUserOverviewListing(username, opts);
@@ -55,7 +57,7 @@
 			after = r.data.after;
 		} catch (e) {
 			console.error('user load failed', username, e);
-			error = e instanceof Error ? e.message : String(e);
+			error = UNEXPECTED;
 		} finally {
 			loading = false;
 		}
@@ -149,7 +151,9 @@
 
 <Tabs tabs={TAB_ITEMS} bind:value={tab} />
 
-{#if error}<ErrorState message={error} />{/if}
+{#if error && items.length === 0}
+	<ErrorState title="u/{username} didn't load" message={error} onRetry={() => loadFeed(true)} />
+{/if}
 
 <div class="list">
 	{#each items as item, i (item.kind === 'post' ? `p-${item.post.id}` : `c-${item.comment.fullId}`)}
