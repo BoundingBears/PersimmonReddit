@@ -15,6 +15,8 @@ import { get } from 'svelte/store';
 import { browser } from '$app/environment';
 import { postActionsState } from '$lib/stores/postActions';
 import { whatsNewOpen } from '$lib/stores/whatsNew';
+import { updateSheetOpen } from '$lib/stores/updateCheck';
+import { installState } from '$lib/stores/updateInstall';
 import { subredditInfoState } from '$lib/stores/subredditInfo';
 import { feedEditState } from '$lib/stores/feedEdit';
 import { drawerOpen } from '$lib/stores/drawer';
@@ -37,6 +39,12 @@ export function installBackHandler(): () => void {
 		}
 		if (get(postActionsState)) {
 			postActionsState.set(null);
+			return;
+		}
+		if (get(updateSheetOpen)) {
+			// Not while it is downloading: the sheet shows the progress.
+			const s = get(installState)?.stage;
+			if (s !== 'downloading' && s !== 'installing') updateSheetOpen.set(false);
 			return;
 		}
 		if (get(whatsNewOpen)) {

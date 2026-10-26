@@ -40,6 +40,7 @@ export interface Prefs {
 	lastKnownUpdateVersion: string; // newest release tag a check found newer than this build
 	lastKnownUpdateUrl: string; // release page for lastKnownUpdateVersion
 	lastKnownUpdateApkUrl: string; // direct .apk asset for the in-app installer
+	lastKnownUpdateNotes: string; // that release's notes, for the update sheet
 	linkHintShown: boolean; // the one-time "Reddit links can open here" nudge
 	galleryHintShown: boolean; // the one-time "swipe up for the next picture" nudge
 	autoBackup: boolean; // silently write a backup to Documents when the app is backgrounded
@@ -73,6 +74,7 @@ export const DEFAULT_PREFS: Prefs = {
 	lastKnownUpdateVersion: '',
 	lastKnownUpdateUrl: '',
 	lastKnownUpdateApkUrl: '',
+	lastKnownUpdateNotes: '',
 	linkHintShown: false,
 	galleryHintShown: false,
 	autoBackup: true,

@@ -124,3 +124,13 @@ export async function openInstallPermissionSettings(): Promise<void> {
 		console.error('could not open install settings', e);
 	}
 }
+
+/** Whether Android currently lets Persimmon install apps. */
+export async function installAllowed(): Promise<boolean> {
+	if (!IS_NATIVE) return false;
+	try {
+		return (await ApkInstaller.canInstall()).granted;
+	} catch {
+		return false;
+	}
+}

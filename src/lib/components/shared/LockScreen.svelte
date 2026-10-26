@@ -3,6 +3,7 @@
 	// from the private folder that was left open. Opaque and above everything,
 	// so nothing underneath can be seen or tapped.
 	import { onMount } from 'svelte';
+	import PersimmonMark from './PersimmonMark.svelte';
 	import Icon from './Icon.svelte';
 	import { get } from 'svelte/store';
 	import { fade } from 'svelte/transition';
@@ -95,19 +96,7 @@
 	<span class="corner rim"></span>
 	<span class="corner"></span>
 	<div class="content" style:padding-top="{topPx}px">
-		<svg class="mark" viewBox="-50 -50 100 100" width="72" height="72" aria-hidden="true">
-			<g fill="#567A2C">
-				{#each [45, 135, 225, 315] as a (a)}
-					<ellipse rx="19" ry="27" cy="-23" transform="rotate({a})" />
-				{/each}
-			</g>
-			<g fill="#3A581E">
-				{#each [0, 90, 180, 270] as a (a)}
-					<ellipse rx="9" ry="13" cy="-11" transform="rotate({a})" />
-				{/each}
-			</g>
-			<circle r="6" fill="#4A321E" />
-		</svg>
+		<span class="mark"><PersimmonMark /></span>
 		<div class="name">{name}</div>
 		<div class="state">Locked</div>
 		<button class="unlock" onclick={ask} disabled={asking} aria-label="Unlock">
@@ -150,6 +139,7 @@
 		text-align: center;
 	}
 	.mark {
+		line-height: 0;
 		margin-bottom: 14px;
 		filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.12));
 	}

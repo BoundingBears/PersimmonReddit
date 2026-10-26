@@ -42,6 +42,8 @@
 	import { setActiveScroller } from '$lib/utils/scroller';
 	import PostActionSheet from '$lib/components/shared/PostActionSheet.svelte';
 	import WhatsNew from '$lib/components/shared/WhatsNew.svelte';
+	import UpdateSheet from '$lib/components/shared/UpdateSheet.svelte';
+	import { resumeAfterPermission } from '$lib/stores/updateInstall';
 	import SubredditInfoSheet from '$lib/components/shared/SubredditInfoSheet.svelte';
 	import FeedEditSheet from '$lib/components/shared/FeedEditSheet.svelte';
 	import Toast from '$lib/components/shared/Toast.svelte';
@@ -319,6 +321,11 @@
 			// Going to the background: a video playing in the feed stops.
 			if (document.visibilityState === 'hidden') stopInlineVideo();
 			if (document.visibilityState !== 'visible') return;
+			// Back from Android's install-permission screen: carry on with the
+			// update. And a release may have come out while the app sat in the
+			// background (the check itself is throttled).
+			void resumeAfterPermission();
+			void checkForUpdates();
 			requestAnimationFrame(() => {
 				const nudge = document.createElement('div');
 				nudge.style.cssText =
@@ -399,6 +406,7 @@
 <ImageViewer />
 <PostActionSheet />
 <WhatsNew />
+<UpdateSheet />
 <SubredditInfoSheet />
 <FeedEditSheet />
 <Toast />

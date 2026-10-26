@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Icon from '$lib/components/shared/Icon.svelte';
-	import { updateAvailable, dismissUpdate } from '$lib/stores/updateCheck';
+	import { updateAvailable, dismissUpdate, openUpdateSheet } from '$lib/stores/updateCheck';
 	import { installState, startUpdate } from '$lib/stores/updateInstall';
 
 	let downloading = $derived($installState?.stage === 'downloading');
@@ -14,13 +14,14 @@
 {#if $updateAvailable}
 	<div class="update-banner">
 		<Icon name="system_update" size={18} />
-		<span class="msg">
+		<!-- The words open the sheet with what is new; the button just updates. -->
+		<button class="msg" onclick={openUpdateSheet}>
 			{#if downloading || installing}
 				Downloading v{$updateAvailable.version}…
 			{:else}
 				Persimmon v{$updateAvailable.version} is available
 			{/if}
-		</span>
+		</button>
 		<button class="update" onclick={() => startUpdate()} disabled={downloading || installing}>
 			{label}
 		</button>
@@ -52,6 +53,12 @@
 	.msg {
 		flex: 1;
 		min-width: 0;
+		padding: 4px 0;
+		text-align: left;
+		color: inherit;
+		font: inherit;
+		background: none;
+		border: 0;
 	}
 	.update {
 		padding: 6px 14px;

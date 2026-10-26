@@ -16,8 +16,8 @@
 	import { feedCache } from '$lib/stores/feedCache';
 	import { filters } from '$lib/stores/filters';
 	import { openWhatsNew } from '$lib/stores/whatsNew';
-	import { checkForUpdates, updateAvailable } from '$lib/stores/updateCheck';
-	import { installState, startUpdate } from '$lib/stores/updateInstall';
+	import { checkForUpdates, knownUpdate, openUpdateSheet } from '$lib/stores/updateCheck';
+	import { installState } from '$lib/stores/updateInstall';
 	import { get } from 'svelte/store';
 	import { clearCache } from '$lib/reddit/client';
 	import {
@@ -103,7 +103,7 @@
 		const r = await checkForUpdates({ force: true });
 		pushToast(
 			r === 'available'
-				? `Persimmon v${get(updateAvailable)?.version ?? ''} is available`
+				? `Persimmon v${get(knownUpdate)?.version ?? ''} is available`
 				: r === 'up-to-date'
 					? "You're on the latest version"
 					: "Couldn't reach GitHub to check",
@@ -670,19 +670,18 @@
 				<div class="brand-sub">Read-only Reddit client · v{APP_VERSION}</div>
 			</div>
 		</div>
-		{#if $updateAvailable}
-			<!-- A found update stays on screen as its own row rather than only
-			     flashing past in a toast, so it's still actionable later. -->
-			<button class="nav update-row" onclick={() => startUpdate()} disabled={updateBusy}>
+		{#if $knownUpdate}
+			<!-- A found update stays on screen as its own row, also after "Skip
+			     this version", so a skipped or missed update can still be had.
+			     Opens the sheet with what is new. -->
+			<button class="nav update-row" onclick={openUpdateSheet}>
 				<Icon name="system_update" size={20} filled />
 				<span class="label">
 					<span class="title">
-						{updateBusy ? `Downloading v${$updateAvailable.version}…` : `Update to v${$updateAvailable.version}`}
+						{updateBusy ? `Downloading v${$knownUpdate.version}…` : `Update to v${$knownUpdate.version}`}
 					</span>
 					<span class="sub">
-						{$installState?.stage === 'installing'
-							? 'Opening the installer…'
-							: 'Downloads and installs from GitHub'}
+						{$installState?.stage === 'installing' ? 'Opening the installer…' : "See what's new and install"}
 					</span>
 				</span>
 				<span class="meta">
@@ -690,7 +689,7 @@
 						? `${$installState.percent}%`
 						: $installState?.stage === 'installing'
 							? 'Opening…'
-							: 'Install'}
+							: 'Update'}
 				</span>
 			</button>
 		{/if}
