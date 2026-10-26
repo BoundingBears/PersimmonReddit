@@ -58,6 +58,7 @@ const UA_LADDER = [
 	'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
 ];
 const HOST_PRIMARY = 'https://www.reddit.com';
+const PAGE_UA = UA_LADDER[1]; // desktop Chrome on Windows
 const CACHE_TTL_MS = 60_000;
 const MAX_ATTEMPTS = 3;
 // Hard transport deadlines. Without these, CapacitorHttp/okhttp inherits
@@ -443,8 +444,11 @@ const oauth =
 export async function getJson<T = unknown>(
 	path: string,
 	params?: Record<string, string | number | boolean>,
-	// quick: one attempt, no re-warming, no saved copy. The answer to "is the
-	// data route open for this right now", for a caller with a second way.
+	// quick: one plain request, no browser-view navigation, no re-warming,
+	// no saved copy. The answer to "is the data route open for this right
+	// now", for a caller with a second way. The navigation was the slow part
+	// (a post took 20 s to appear on a connection where the answer is always
+	// no), and a refusal is a refusal either way.
 	opts: { quick?: boolean } = {}
 ): Promise<Result<T>> {
 	const url = buildUrl(HOST_PRIMARY, path, params);
@@ -456,7 +460,7 @@ export async function getJson<T = unknown>(
 	const r = oauth
 		? await oauth.get(buildUrl(OAUTH_HOST, path, params))
 		: opts.quick
-			? await withRetries((ua) => rawGet(url, ua, 'quick'), 1)
+			? await withRetries((ua) => rawGet(url, ua, 'bare'), 1)
 			: await withRetries((ua, attempt) => rawGet(url, ua, attempt === 0 ? 'full' : 'bare'));
 	if (r.ok) {
 		cache.set(key, { at: Date.now(), data: r.data });
@@ -497,7 +501,10 @@ export async function getPage(
 		const res = await CapacitorHttp.get({
 			url,
 			headers: {
-				'User-Agent': UA_LADDER[0],
+				// As a desktop browser: Reddit's desktop pages carry more of a
+				// thread (25 comments to the mobile page's 10, measured
+				// 2026-10-25) and the same posts and markup otherwise.
+				'User-Agent': PAGE_UA,
 				Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
 				'Accept-Language': 'en-US,en;q=0.9'
 			},

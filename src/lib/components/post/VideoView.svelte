@@ -9,9 +9,26 @@
 	interface Props {
 		video: MediaVideo;
 		poster?: string;
+		// The poster picture's size, for the shape when the video's own is unknown.
+		posterWidth?: number;
+		posterHeight?: number;
+		// Playing inside a feed card: start at once, silent until asked.
+		inline?: boolean;
 	}
 
-	let { video, poster }: Props = $props();
+	let { video, poster, posterWidth = 0, posterHeight = 0, inline = false }: Props = $props();
+
+	// The box keeps one shape from first paint to playback. It used to take
+	// the shape of whatever was showing: the large poster first, then, once
+	// the stream started, the video's own pixel size, which for a 360p stream
+	// is a lot smaller. Tapping play shrank the video under the finger.
+	let ratio = $derived(
+		video.width > 0 && video.height > 0
+			? video.width / video.height
+			: posterWidth > 0 && posterHeight > 0
+				? posterWidth / posterHeight
+				: 16 / 9
+	);
 	let wrapEl: HTMLDivElement | undefined = $state();
 	let videoEl: HTMLVideoElement | undefined = $state();
 	let hls: { destroy: () => void } | undefined;
@@ -54,7 +71,11 @@
 		}
 	}
 
-	function parseTracks(xml: string): { video: Track; audio: Track } | null {
+	// `audio` is null for a clip that has no sound at all, which is common:
+	// Reddit strips the track from silent uploads. Requiring one made every
+	// silent clip fail here and, with no plain file to fall back to, show
+	// nothing (most clips read from the web pages, see pageReader.ts).
+	function parseTracks(xml: string): { video: Track; audio: Track | null } | null {
 		try {
 			const doc = new DOMParser().parseFromString(xml, 'text/xml');
 			const sets = Array.from(doc.getElementsByTagNameNS('*', 'AdaptationSet'));
@@ -70,9 +91,14 @@
 				const reps = Array.from(set.getElementsByTagNameNS('*', 'Representation'));
 				if (!reps.length) return null;
 				let rep: Element = reps[0];
-				if (kind === 'video' && video.fallbackUrl) {
-					const fname = baseName(video.fallbackUrl);
-					rep = reps.find((r) => baseUrlOf(r) === fname) ?? reps[reps.length - 1];
+				if (kind === 'video') {
+					// The quality the post names, else the best on offer. Reddit lists
+					// the smallest first, so "the first one" was a 220-pixel picture
+					// stretched across the screen.
+					const fname = video.fallbackUrl ? baseName(video.fallbackUrl) : null;
+					const height = (r: Element) => Number(r.getAttribute('height')) || Number(r.getAttribute('bandwidth')) || 0;
+					const best = reps.reduce((a, b) => (height(b) > height(a) ? b : a));
+					rep = (fname && reps.find((r) => baseUrlOf(r) === fname)) || best;
 				}
 				const codecs = rep.getAttribute('codecs') ?? set.getAttribute('codecs');
 				const bu = baseUrlOf(rep);
@@ -80,8 +106,7 @@
 				return { url: new URL(bu, video.dashUrl).toString(), codecs };
 			};
 			const v = pick('video');
-			const a = pick('audio');
-			return v && a ? { video: v, audio: a } : null;
+			return v ? { video: v, audio: pick('audio') } : null;
 		} catch {
 			return null;
 		}
@@ -126,8 +151,14 @@
 		if (!video.dashUrl || typeof MediaSource === 'undefined' || !videoEl) return false;
 		const xml = await fetchTextNative(video.dashUrl);
 		if (!xml) return false;
-		const tracks = parseTracks(xml);
-		if (!tracks) return false;
+		const parsed = parseTracks(xml);
+		if (!parsed) return false;
+		// Picture only: the track is a whole MP4 the element can play by itself.
+		if (!parsed.audio) {
+			videoEl.src = parsed.video.url;
+			return true;
+		}
+		const tracks = { video: parsed.video, audio: parsed.audio };
 		const vMime = `video/mp4; codecs="${tracks.video.codecs}"`;
 		const aMime = `audio/mp4; codecs="${tracks.audio.codecs}"`;
 		if (!MediaSource.isTypeSupported(vMime) || !MediaSource.isTypeSupported(aMime)) return false;
@@ -262,10 +293,46 @@
 		});
 	}
 
+	// The stream Reddit's own players use. HLS carries sound in the same
+	// stream, so nothing needs joining. Resolves false if it cannot start.
+	async function setupHls(): Promise<boolean> {
+		if (!video.hlsUrl || !videoEl) return false;
+		if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+			videoEl.src = video.hlsUrl;
+			return true;
+		}
+		const { default: Hls } = await import('hls.js');
+		if (!videoEl || !Hls.isSupported()) return false;
+		const instance = new Hls({ enableWorker: true });
+		hls = instance;
+		return new Promise((resolve) => {
+			const give = (ok: boolean) => {
+				clearTimeout(timer);
+				resolve(ok);
+			};
+			const timer = setTimeout(() => give(false), 8000);
+			instance.on(Hls.Events.MANIFEST_PARSED, () => give(true));
+			instance.on(Hls.Events.ERROR, (_e: unknown, data: { fatal?: boolean }) => {
+				if (data?.fatal) {
+					instance.destroy();
+					hls = undefined;
+					give(false);
+				}
+			});
+			instance.loadSource(video.hlsUrl!);
+			instance.attachMedia(videoEl!);
+		});
+	}
+
 	function fallbackPlay(): void {
 		if (!videoEl || !video.fallbackUrl) return;
 		videoEl.src = video.fallbackUrl;
-		if (!video.isGif) attachAudio(audioCandidates(video.fallbackUrl));
+		// Reddit's DASH_<height>.mp4 files are picture only and need the sound
+		// beside them. Any other file (the ready-made MP4 from the web page)
+		// already has it.
+		const separateSound = /\/DASH_\d+\.mp4/.test(video.fallbackUrl);
+		muxed = !separateSound;
+		if (!video.isGif && separateSound) attachAudio(audioCandidates(video.fallbackUrl));
 	}
 
 	// ---------- Custom controls ----------
@@ -331,7 +398,7 @@
 
 	onMount(async () => {
 		if (!videoEl) return;
-		muted = $prefs.autoplayVideos;
+		muted = inline || $prefs.autoplayVideos;
 
 		if (IS_NATIVE) {
 			let ok = false;
@@ -341,7 +408,16 @@
 				ok = false;
 			}
 			muxed = ok;
-			if (!ok && videoEl) fallbackPlay();
+			if (!ok) {
+				let viaHls = false;
+				try {
+					viaHls = await setupHls();
+				} catch {
+					viaHls = false;
+				}
+				muxed = viaHls;
+				if (!viaHls && videoEl) fallbackPlay();
+			}
 		} else if (video.hlsUrl && videoEl.canPlayType('application/vnd.apple.mpegurl')) {
 			videoEl.src = video.hlsUrl;
 			muxed = true;
@@ -363,7 +439,7 @@
 		}
 
 		applyMute();
-		if ($prefs.autoplayVideos) {
+		if (inline || $prefs.autoplayVideos) {
 			videoEl.play().catch(() => undefined);
 		}
 
@@ -392,7 +468,7 @@
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -- the play, mute and fullscreen buttons inside are the keyboard route; this is the touch shortcut for showing them. -->
-<div class="wrap" bind:this={wrapEl} class:fs={isFullscreen} onclick={onTapPlayer}>
+<div class="wrap" bind:this={wrapEl} class:fs={isFullscreen} class:fill={inline} onclick={onTapPlayer} style:--ratio={ratio}>
 	<video
 		bind:this={videoEl}
 		{poster}
@@ -459,16 +535,26 @@
 		/* Uniform cap so every video — portrait or landscape — fits on screen
 		   without scrolling, and leaves room for the action bar below it.
 		   Taller-than-wide videos letterbox instead of pushing the page down. */
+		width: 100%;
+		aspect-ratio: var(--ratio, 16 / 9);
 		max-height: 50vh;
 	}
 	.wrap.fs {
 		height: 100%;
 		max-height: none;
+		aspect-ratio: auto;
 	}
+	/* In a feed card: the box is the card's, sized to the picture it replaced. */
+	.wrap.fill {
+		height: 100%;
+		max-height: none;
+		aspect-ratio: auto;
+	}
+	/* Fills the box whatever is showing; the picture is fitted inside it. */
 	video {
 		display: block;
-		max-width: 100%;
-		max-height: 50vh;
+		width: 100%;
+		height: 100%;
 		object-fit: contain;
 		background: #000;
 	}

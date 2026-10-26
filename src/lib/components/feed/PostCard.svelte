@@ -15,6 +15,9 @@
 	import { pushToast } from '$lib/stores/toast';
 	import { openPostActions } from '$lib/stores/postActions';
 	import { longPress } from '$lib/actions/longPress';
+	import VideoView from '$lib/components/post/VideoView.svelte';
+	import { inlineVideo } from '$lib/stores/inlineVideo';
+	import { onDestroy } from 'svelte';
 	import type { Post } from '$lib/reddit/types';
 
 	interface Props {
@@ -34,8 +37,45 @@
 		revealed = true;
 	}
 
+	// Reddit videos play in the card (inlineVideo.ts); everything else about
+	// the card still opens the post.
+	let canPlayHere = $derived(post.kind === 'video' && !!post.video && !blur);
+	let playingHere = $derived(canPlayHere && $inlineVideo === post.id);
+
+	// The player takes over the picture's exact box, so nothing moves when
+	// play is tapped: not the card, and not the play button, which is in the
+	// same place, at the same size, in both.
+	let previewEl: HTMLDivElement | undefined = $state();
+	let boxHeight = $state(0);
+
+	function playHere(e: MouseEvent) {
+		e.stopPropagation();
+		boxHeight = previewEl?.getBoundingClientRect().height ?? 0;
+		inlineVideo.set(post.id);
+	}
+
+	// Scrolled mostly out of view: back to the picture, and the stream stops.
+	let mediaEl: HTMLDivElement | undefined = $state();
+	$effect(() => {
+		const el = mediaEl;
+		if (!playingHere || !el || typeof IntersectionObserver === 'undefined') return;
+		const obs = new IntersectionObserver(
+			(entries) => {
+				for (const entry of entries) {
+					if (entry.intersectionRatio < 0.35 && $inlineVideo === post.id) inlineVideo.set(null);
+				}
+			},
+			{ threshold: [0, 0.35] }
+		);
+		obs.observe(el);
+		return () => obs.disconnect();
+	});
+	onDestroy(() => {
+		if ($inlineVideo === post.id) inlineVideo.set(null);
+	});
+
 	function open(e?: Event) {
-		if (e && (e.target as HTMLElement | null)?.closest('a')) return;
+		if (e && (e.target as HTMLElement | null)?.closest('a, .inline-video')) return;
 		if (onOpen) onOpen(post);
 		else openPost(post.id, post);
 	}
@@ -95,8 +135,18 @@
 		</div>
 	{/if}
 
-	{#if preview}
-		<div class="preview" class:blur>
+	{#if playingHere && post.video}
+		<div class="inline-video" bind:this={mediaEl} style:height={boxHeight ? `${boxHeight}px` : undefined}>
+			<VideoView
+				video={post.video}
+				poster={preview?.url}
+				posterWidth={preview?.width}
+				posterHeight={preview?.height}
+				inline
+			/>
+		</div>
+	{:else if preview}
+		<div class="preview" class:blur bind:this={previewEl}>
 			<img
 				src={preview.url}
 				alt={post.title}
@@ -108,7 +158,11 @@
 			{#if blur}
 				<button class="reveal" onclick={reveal}>Tap to reveal</button>
 			{/if}
-			{#if (post.kind === 'video' || post.kind === 'embed') && !blur}
+			{#if canPlayHere}
+				<button class="play play-here" onclick={playHere} aria-label="Play video">
+					<span class="play-disc"><Icon name="play_arrow" size={40} /></span>
+				</button>
+			{:else if (post.kind === 'video' || post.kind === 'embed') && !blur}
 				<div class="play"><Icon name="play_arrow" size={48} /></div>
 			{/if}
 			{#if post.kind === 'gallery'}
@@ -240,6 +294,37 @@
 		justify-content: center;
 		color: #fff;
 		text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+	}
+	/* A real button now: tapping it plays the video in the card. The rest of
+	   the picture still opens the post, so the target is the disc in the
+	   middle, not the whole picture. */
+	.play-here {
+		inset: auto;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		padding: 0;
+		background: none;
+		border: 0;
+	}
+	.play-disc {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		/* The same disc as the player's own play button (VideoView .center). */
+		width: 64px;
+		height: 64px;
+		border-radius: 32px;
+		background: rgba(0, 0, 0, 0.5);
+		color: #fff;
+	}
+	.play-here:active .play-disc {
+		background: rgba(0, 0, 0, 0.7);
+	}
+	.inline-video {
+		border-radius: 12px;
+		overflow: hidden;
+		background: #000;
 	}
 	.badge-corner {
 		position: absolute;

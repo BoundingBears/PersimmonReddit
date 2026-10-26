@@ -14,7 +14,7 @@
 	import CommentTree from '$lib/components/comments/CommentTree.svelte';
 	import PullIndicator from '$lib/components/shared/PullIndicator.svelte';
 	import Dropdown from '$lib/components/shared/Dropdown.svelte';
-	import { getSubmissionComments } from '$lib/reddit/endpoints';
+	import { dataRouteLikelyOpen, getMoreCommentsFromPages, getSubmissionComments } from '$lib/reddit/endpoints';
 	import { prefs } from '$lib/stores/prefs';
 	import { readPosts } from '$lib/stores/readPosts';
 	import { readOffline, storeOffline, type OfflineCopy } from '$lib/stores/offline';
@@ -55,6 +55,9 @@
 	// web page (endpoints.ts): how many are shown, out of how many.
 	let partial = $state<{ shown: number; total: number } | null>(null);
 	let askingForAll = $state(false);
+	// The other sort orders' pages have been read for more comments (below):
+	// there is nothing left to ask for.
+	let gotAllPagesGive = $state(false);
 
 	function showCopy(copy: OfflineCopy) {
 		post = copy.post;
@@ -81,7 +84,12 @@
 		const b = fresh as unknown as Record<string, unknown>;
 		for (const key of Object.keys(b)) {
 			const value = b[key];
-			if (value !== null && typeof value === 'object') continue;
+			// Media the seed already had stays as it is. Media it lacked (a post
+			// seeded from a search result, which has no pictures) is added.
+			if (value !== null && typeof value === 'object') {
+				if (a[key] == null) a[key] = value;
+				continue;
+			}
 			if (a[key] !== value) a[key] = value;
 		}
 	}
@@ -137,12 +145,14 @@
 			copyAt = null;
 			offline = false;
 			partial = r.meta?.partial ?? null;
+			gotAllPagesGive = false;
 			// Does nothing unless the post is saved or in the private folder. Not
 			// a partial thread: it would replace a complete saved copy.
 			if (!partial) void storeOffline(id, r.data);
 			// The few comments from the page are on screen now. Ask once more,
-			// properly, for the whole thread, and swap it in if it comes.
-			else void askForAll(true);
+			// properly, for the whole thread, and swap it in if it comes. Not
+			// while Reddit is known to be refusing: that is one more refusal.
+			else if (dataRouteLikelyOpen()) void askForAll(true);
 			if ($prefs.markPostsRead) readPosts.mark(id);
 			const first = !loadedOnce;
 			loadedOnce = true;
@@ -170,6 +180,33 @@
 		sort;
 		untrack(() => load());
 	});
+
+	// More comments for a thread Reddit only partly gave: the ones its other
+	// sort orders put first (endpoints.ts), added below the ones showing.
+	let loadingMore = $state(false);
+	async function loadMoreFromPages() {
+		if (loadingMore) return;
+		loadingMore = true;
+		const gen = loadGen;
+		try {
+			const have = new Set(comments.flatMap((c) => (c.kind === 'comment' ? [c.id] : [])));
+			const r = await getMoreCommentsFromPages(id, have, sort);
+			if (gen !== loadGen || destroyed) return;
+			if (!r.ok) {
+				pushToast(r.error.message, { key: 'more-comments' });
+				return;
+			}
+			gotAllPagesGive = true;
+			if (r.data.length === 0) {
+				pushToast('No more comments to load.', { key: 'more-comments' });
+				return;
+			}
+			comments = [...comments, ...r.data];
+			if (partial) partial = { ...partial, shown: partial.shown + r.data.length };
+		} finally {
+			loadingMore = false;
+		}
+	}
 
 	// The whole thread, by the data route with everything it has. Slow when
 	// Reddit is refusing (many seconds), which is why opening a post does not
@@ -255,15 +292,19 @@
 			{#if partial && !error}
 				<div class="partial-note">
 					<span>
-						{#if partial.total > partial.shown}
-							Reddit refused the full thread. These are the first {partial.shown} of {partial.total.toLocaleString()} comments, without replies.
+						{#if gotAllPagesGive}
+							These are all the comments Reddit's pages carry for this thread: {partial.shown} of {partial.total.toLocaleString()}. Tap More replies under any of them to read its replies.
+						{:else if partial.total > partial.shown}
+							Reddit only sends the first {partial.shown} of {partial.total.toLocaleString()} comments to apps that are not signed in. Tap More replies under any of them to read its replies.
 						{:else}
-							Reddit refused the full thread. These comments are shown without their replies.
+							Reddit refused the full thread. Tap More replies under a comment to read its replies.
 						{/if}
 					</span>
-					<button onclick={() => askForAll()} disabled={askingForAll}>
-						{askingForAll ? 'Asking for the rest…' : 'Ask again for all'}
-					</button>
+					{#if !gotAllPagesGive}
+						<button onclick={loadMoreFromPages} disabled={loadingMore}>
+							{loadingMore ? 'Loading more comments…' : 'Load more comments'}
+						</button>
+					{/if}
 				</div>
 			{/if}
 		{/if}

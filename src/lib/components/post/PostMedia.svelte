@@ -48,7 +48,12 @@
 		alt={target.title}
 	/>
 {:else if target.kind === 'video' && target.video}
-	<VideoView video={target.video} poster={target.preview?.url} />
+	<VideoView
+		video={target.video}
+		poster={target.preview?.url}
+		posterWidth={target.preview?.width}
+		posterHeight={target.preview?.height}
+	/>
 {:else if target.kind === 'gallery' && target.gallery}
 	<GalleryView items={target.gallery} nsfw={target.over18} />
 {:else if direct || target.embed}

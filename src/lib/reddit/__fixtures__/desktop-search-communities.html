@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html><head>
+ <title>Reddit - The heart of the internet</title>
+ </head>
+ <body>
+ <a href="#main-content" id="shreddit-skip-link"><span>
+ <span>Skip to main content</span>
+ </span>
+ </a>
+ <shreddit-async-loader>
+ <reputation-recaptcha></reputation-recaptcha>
+ </shreddit-async-loader>
+ <shreddit-app>
+ <app-plugin-overlay-manager-controller>
+ </app-plugin-overlay-manager-controller>
+ <app-plugin-navigation-controller>
+ </app-plugin-navigation-controller>
+ <app-plugin-performance-observer-controller>
+ </app-plugin-performance-observer-controller>
+ <app-plugin-platform-health-controller>
+ </app-plugin-platform-health-controller>
+ <app-plugin-pwa-controller></app-plugin-pwa-controller>
+ <app-plugin-deferred-experience-batch-controller>
+ </app-plugin-deferred-experience-batch-controller>
+ <faceplate-server-session></faceplate-server-session>
+ <shreddit-good-visit-tracker>
+ </shreddit-good-visit-tracker><shreddit-seo-good-visit-tracker>
+ </shreddit-seo-good-visit-tracker>
+ <shreddit-async-loader>
+ <screen-reader-alert-outlet></screen-reader-alert-outlet>
+ </shreddit-async-loader>
+ <!-- routable page start -->
+ <shreddit-activated-feature-meta></shreddit-activated-feature-meta>
+ <shreddit-page-meta>
+ <template>
+ <shreddit-app-attrs>
+ </shreddit-app-attrs>
+ <shreddit-good-visit-tracker-attrs>
+ </shreddit-good-visit-tracker-attrs>
+ <shreddit-seo-good-visit-tracker-attrs>
+ </shreddit-seo-good-visit-tracker-attrs>
+ </template>
+ </shreddit-page-meta> 
+ <span>
+ </span>
+ <template>
+ <alert-controller></alert-controller>
+ </template>
+ <auth-flow-manager>
+ <span slot="login">
+ </span>
+ <span slot="register">
+ </span>
+ <span slot="register-email-only">
+ </span>
+ <span slot="password">
+ </span>
+ <span slot="phone_auth">
+ </span>
+ <span slot="onboarding">
+ </span>
+ <span slot="sso_linking">
+ </span>
+ <span slot="sso_username_creation">
+ </span>
+ <span slot="username">
+ </span>
+ <span slot="answers_register">
+ </span>
+ <span slot="passwordrecovery">
+ </span>
+ <span slot="magic_link_login">
+ </span>
+ <span slot="magic_link_register">
+ </span>
+ <span slot="desktop_timer_upsell_signup">
+ </span>
+ <span slot="desktop_timer_upsell_login">
+ </span>
+ </auth-flow-manager>
+ <div>
+ <ac-activate></ac-activate>
+ <ac-call method="initModal"></ac-call>
+ </div>
+ <shreddit-media-lightbox></shreddit-media-lightbox><shreddit-title></shreddit-title>
+ <reddit-page-data></reddit-page-data><search-dynamic-id-cache-controller>
+ <div data-faceplate-tracking-context="{&quot;search&quot;:{&quot;query&quot;:&quot;woodworking&quot;,&quot;conversation_id&quot;:&quot;1ad4657e-ebd2-4ae4-9d27-a1ceae0f2c08&quot;,&quot;impression_id&quot;:&quot;233292e0-2098-4136-900c-b30abd5617fe&quot;,&quot;origin_page_type&quot;:&quot;search_results&quot;,&quot;query_id&quot;:&quot;88dc7db6-6d08-4264-a1b9-a03c3d45b44d&quot;,&quot;nsfw&quot;:false,&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;,&quot;scope_path&quot;:&quot;/&quot;,&quot;scope_type&quot;:&quot;GLOBAL&quot;},&quot;user_preferences&quot;:{&quot;hide_nsfw&quot;:true},&quot;action_info&quot;:{&quot;pane_name&quot;:&quot;communities&quot;}}">
+ <search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;pane_name&quot;:&quot;communities&quot;},&quot;search&quot;:{&quot;query&quot;:&quot;woodworking&quot;,&quot;nsfw&quot;:false,&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;,&quot;query_id&quot;:&quot;88dc7db6-6d08-4264-a1b9-a03c3d45b44d&quot;,&quot;scope_path&quot;:&quot;/&quot;,&quot;scope_type&quot;:&quot;GLOBAL&quot;}}"> <div>
+ <div id="subgrid-container"><div>
+ <div><search-results-page-tabs>
+ <div slot="tabs"> <div>
+ <faceplate-tabgroup slot="tabs" id="search-results-page-tabgroup" for="search-results-page-tabs">
+ <a href="/search/?q=woodworking&amp;type=ai_search&amp;ep=serp_tab" id="search-results-page-tab-ai_search" slot="ai_search"><span>
+ <span><search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;type&quot;:&quot;ai_search&quot;},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;}}"><span>
+ <span></span>
+ <!--TODO remove min-width calculation after Faceplate team will fix precision point width bug for tabgroup-->
+ <span>
+ Ask
+ </span>
+ </span></search-telemetry-tracker></span>
+ </span>
+ </a><a href="/search/?q=woodworking&amp;type=all" id="search-results-page-tab-all" slot="all"><span>
+ <span><search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;type&quot;:&quot;all&quot;},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;}}"><span>
+ <!--TODO remove min-width calculation after Faceplate team will fix precision point width bug for tabgroup-->
+ <span>
+ All
+ </span>
+ </span></search-telemetry-tracker></span>
+ </span>
+ </a><a href="/search/?q=woodworking&amp;type=posts" id="search-results-page-tab-posts" slot="posts"><span>
+ <span><search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;type&quot;:&quot;posts&quot;},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;}}"><span>
+ <!--TODO remove min-width calculation after Faceplate team will fix precision point width bug for tabgroup-->
+ <span>
+ Posts
+ </span>
+ </span></search-telemetry-tracker></span>
+ </span>
+ </a><a href="/search/?q=woodworking&amp;type=communities" id="search-results-page-tab-communities" slot="communities"><span>
+ <span><search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;type&quot;:&quot;communities&quot;},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;}}"><span>
+ <!--TODO remove min-width calculation after Faceplate team will fix precision point width bug for tabgroup-->
+ <span>
+ Communities
+ </span>
+ </span></search-telemetry-tracker></span>
+ </span>
+ </a><a href="/search/?q=woodworking&amp;type=comments" id="search-results-page-tab-comments" slot="comments"><span>
+ <span><search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;type&quot;:&quot;comments&quot;},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;}}"><span>
+ <!--TODO remove min-width calculation after Faceplate team will fix precision point width bug for tabgroup-->
+ <span>
+ Comments
+ </span>
+ </span></search-telemetry-tracker></span>
+ </span>
+ </a><a href="/search/?q=woodworking&amp;type=media" id="search-results-page-tab-media" slot="media"><span>
+ <span><search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;type&quot;:&quot;media&quot;},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;}}"><span>
+ <!--TODO remove min-width calculation after Faceplate team will fix precision point width bug for tabgroup-->
+ <span>
+ Media
+ </span>
+ </span></search-telemetry-tracker></span>
+ </span>
+ </a><a href="/search/?q=woodworking&amp;type=people" id="search-results-page-tab-people" slot="people"><span>
+ <span><search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;type&quot;:&quot;people&quot;},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;}}"><span>
+ <!--TODO remove min-width calculation after Faceplate team will fix precision point width bug for tabgroup-->
+ <span>
+ Profiles
+ </span>
+ </span></search-telemetry-tracker></span>
+ </span>
+ </a>
+ <button slot="back-button">
+ <span>
+ <span></span>
+ </span>
+ <faceplate-screen-reader-content>back</faceplate-screen-reader-content>
+ </button>
+ <button slot="forward-button">
+ <span>
+ <span></span>
+ </span>
+ <faceplate-screen-reader-content>forward</faceplate-screen-reader-content>
+ </button>
+ </faceplate-tabgroup>
+ </div>
+ <faceplate-tabpanel id="search-results-page-tabs"></faceplate-tabpanel>
+ </div>
+ </search-results-page-tabs></div>
+ </div><shreddit-async-loader>
+ <reddit-skip-to-sidebar></reddit-skip-to-sidebar>
+ </shreddit-async-loader>
+ <div>
+ <main id="main-content">
+ <div>
+ <shreddit-screenview-data></shreddit-screenview-data>
+ <search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;position&quot;:0,&quot;relative_position&quot;:0},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;},&quot;subreddit&quot;:{&quot;id&quot;:&quot;t5_2qlqp&quot;,&quot;name&quot;:&quot;woodworking&quot;,&quot;nsfw&quot;:false,&quot;quarantined&quot;:false}}" view-events="search/view/subreddit"><div data-testid="search-community">
+ <search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;position&quot;:0,&quot;relative_position&quot;:0},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;},&quot;subreddit&quot;:{&quot;id&quot;:&quot;t5_2qlqp&quot;,&quot;name&quot;:&quot;woodworking&quot;,&quot;nsfw&quot;:false,&quot;quarantined&quot;:false}}"><a href="/r/woodworking/">
+ <faceplate-screen-reader-content>woodworking</faceplate-screen-reader-content>
+ </a></search-telemetry-tracker>
+ <div>
+ <span> <div>
+ <div>
+ <span>
+ <span>
+ <img src="https://styles.redditmedia.com/t5_2qlqp/styles/communityIcon_7ufwgp6bijra1.png?width=64&amp;frame=1&amp;auto=webp&amp;s=63113041e8d6beab2bfcae5c2218f8346f7c8471" alt="" width="48">
+ </span></span>
+ </div>
+ </div> </span>
+ <div>
+ <h2><span data-testid="search-community-title" id="search-community-title-t5_2qlqp">r/woodworking</span></h2>
+ <div>
+ <p data-testid="search-subreddit-desc-text">
+ Woodworking is your worldwide home for discussion of all things woodworking, carpentry, fine furniture, power tools, hand tools, and just about anything else about making - anything - from trees!
+ </p>
+ <div>
+ <span><faceplate-number number="509992"></faceplate-number> weekly visitors</span>
+ <span>·</span>
+ <span> <faceplate-number number="6155"></faceplate-number>
+ weekly contributions</span>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div></search-telemetry-tracker><hr><search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;position&quot;:1,&quot;relative_position&quot;:1},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;},&quot;subreddit&quot;:{&quot;id&quot;:&quot;t5_3edk4&quot;,&quot;name&quot;:&quot;BeginnerWoodWorking&quot;,&quot;nsfw&quot;:false,&quot;quarantined&quot;:false}}" view-events="search/view/subreddit"><div data-testid="search-community">
+ <search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;position&quot;:1,&quot;relative_position&quot;:1},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;},&quot;subreddit&quot;:{&quot;id&quot;:&quot;t5_3edk4&quot;,&quot;name&quot;:&quot;BeginnerWoodWorking&quot;,&quot;nsfw&quot;:false,&quot;quarantined&quot;:false}}"><a href="/r/BeginnerWoodWorking/">
+ <faceplate-screen-reader-content>BeginnerWoodWorking</faceplate-screen-reader-content>
+ </a></search-telemetry-tracker>
+ <div>
+ <span> <div>
+ <div>
+ <span>
+ <span>
+ <img src="https://styles.redditmedia.com/t5_3edk4/styles/communityIcon_rsrueixg9k951.png?width=64&amp;frame=1&amp;auto=webp&amp;s=605046d9ec893e05a99adbe4a3009751c39eef9f" alt="" width="48">
+ </span></span>
+ </div>
+ </div> </span>
+ <div>
+ <h2><span data-testid="search-community-title" id="search-community-title-t5_3edk4">r/BeginnerWoodWorking</span></h2>
+ <div>
+ <p data-testid="search-subreddit-desc-text">
+ Welcome to r/BeginnerWoodWorking the community designed for those who are Amateur Woodworkers. Come in post your projects, answer questions, hang out and chill.
+ </p>
+ <div>
+ <span><faceplate-number number="316694"></faceplate-number> weekly visitors</span>
+ <span>·</span>
+ <span> <faceplate-number number="6477"></faceplate-number>
+ weekly contributions</span>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div></search-telemetry-tracker><hr><search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;position&quot;:2,&quot;relative_position&quot;:2},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;},&quot;subreddit&quot;:{&quot;id&quot;:&quot;t5_5gjbe1&quot;,&quot;name&quot;:&quot;Woodworking_DIY&quot;,&quot;nsfw&quot;:false,&quot;quarantined&quot;:false}}" view-events="search/view/subreddit"><div data-testid="search-community">
+ <search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;position&quot;:2,&quot;relative_position&quot;:2},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;},&quot;subreddit&quot;:{&quot;id&quot;:&quot;t5_5gjbe1&quot;,&quot;name&quot;:&quot;Woodworking_DIY&quot;,&quot;nsfw&quot;:false,&quot;quarantined&quot;:false}}"><a href="/r/Woodworking_DIY/">
+ <faceplate-screen-reader-content>Woodworking_DIY</faceplate-screen-reader-content>
+ </a></search-telemetry-tracker>
+ <div>
+ <span> <div>
+ <div>
+ <span>
+ <span>
+ <img src="https://styles.redditmedia.com/t5_5gjbe1/styles/communityIcon_knsdhh750l481.png?width=64&amp;frame=1&amp;auto=webp&amp;s=c143835c32c644ec28c9009e59744eec379032de" alt="" width="48">
+ </span></span>
+ </div>
+ </div> </span>
+ <div>
+ <h2><span data-testid="search-community-title" id="search-community-title-t5_5gjbe1">r/Woodworking_DIY</span></h2>
+ <div>
+ <p data-testid="search-subreddit-desc-text">
+ This community we share loads of completed woodworking projects and amazing woodwork, For inspiring wood-obsessed creators, whether they are beginners and professionals.
+ </p>
+ <div>
+ <span><faceplate-number number="2711"></faceplate-number> weekly visitors</span>
+ <span>·</span>
+ <span> <faceplate-number number="132"></faceplate-number>
+ weekly contributions</span>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div></search-telemetry-tracker><hr><search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;position&quot;:3,&quot;relative_position&quot;:3},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;},&quot;subreddit&quot;:{&quot;id&quot;:&quot;t5_2qocp&quot;,&quot;name&quot;:&quot;wood&quot;,&quot;nsfw&quot;:false,&quot;quarantined&quot;:false}}" view-events="search/view/subreddit"><div data-testid="search-community">
+ <search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;position&quot;:3,&quot;relative_position&quot;:3},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;},&quot;subreddit&quot;:{&quot;id&quot;:&quot;t5_2qocp&quot;,&quot;name&quot;:&quot;wood&quot;,&quot;nsfw&quot;:false,&quot;quarantined&quot;:false}}"><a href="/r/wood/">
+ <faceplate-screen-reader-content>wood</faceplate-screen-reader-content>
+ </a></search-telemetry-tracker>
+ <div>
+ <span> <div>
+ <div>
+ <span>
+ <span>
+ </span></span>
+ </div>
+ </div> </span>
+ <div>
+ <h2><span data-testid="search-community-title" id="search-community-title-t5_2qocp">r/wood</span></h2>
+ <div>
+ <p data-testid="search-subreddit-desc-text">
+ A woodworker's reddit. Beginners welcome and encouraged!
+ </p>
+ <div>
+ <span><faceplate-number number="61025"></faceplate-number> weekly visitors</span>
+ <span>·</span>
+ <span> <faceplate-number number="1899"></faceplate-number>
+ weekly contributions</span>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div></search-telemetry-tracker><hr><search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;position&quot;:4,&quot;relative_position&quot;:4},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;},&quot;subreddit&quot;:{&quot;id&quot;:&quot;t5_2vaev&quot;,&quot;name&quot;:&quot;Woodworkingplans&quot;,&quot;nsfw&quot;:false,&quot;quarantined&quot;:false}}" view-events="search/view/subreddit"><div data-testid="search-community">
+ <search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;position&quot;:4,&quot;relative_position&quot;:4},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;},&quot;subreddit&quot;:{&quot;id&quot;:&quot;t5_2vaev&quot;,&quot;name&quot;:&quot;Woodworkingplans&quot;,&quot;nsfw&quot;:false,&quot;quarantined&quot;:false}}"><a href="/r/Woodworkingplans/">
+ <faceplate-screen-reader-content>Woodworkingplans</faceplate-screen-reader-content>
+ </a></search-telemetry-tracker>
+ <div>
+ <span> <div>
+ <div>
+ <span>
+ <span>
+ </span></span>
+ </div>
+ </div> </span>
+ <div>
+ <h2><span data-testid="search-community-title" id="search-community-title-t5_2vaev">r/Woodworkingplans</span></h2>
+ <div>
+ <p data-testid="search-subreddit-desc-text">
+ Sharing woodworking plans.
+ </p>
+ <div>
+ <span><faceplate-number number="5440"></faceplate-number> weekly visitors</span>
+ <span>·</span>
+ <span> <faceplate-number number="70"></faceplate-number>
+ weekly contributions</span>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div></search-telemetry-tracker><hr><search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;position&quot;:5,&quot;relative_position&quot;:5},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;},&quot;subreddit&quot;:{&quot;id&quot;:&quot;t5_328u0&quot;,&quot;name&quot;:&quot;woodworkingporn&quot;,&quot;nsfw&quot;:false,&quot;quarantined&quot;:false}}" view-events="search/view/subreddit"><div data-testid="search-community">
+ <search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;position&quot;:5,&quot;relative_position&quot;:5},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;},&quot;subreddit&quot;:{&quot;id&quot;:&quot;t5_328u0&quot;,&quot;name&quot;:&quot;woodworkingporn&quot;,&quot;nsfw&quot;:false,&quot;quarantined&quot;:false}}"><a href="/r/woodworkingporn/">
+ <faceplate-screen-reader-content>woodworkingporn</faceplate-screen-reader-content>
+ </a></search-telemetry-tracker>
+ <div>
+ <span> <div>
+ <div>
+ <span>
+ <span>
+ </span></span>
+ </div>
+ </div> </span>
+ <div>
+ <h2><span data-testid="search-community-title" id="search-community-title-t5_328u0">r/woodworkingporn</span></h2>
+ <div>
+ <p data-testid="search-subreddit-desc-text">
+ pictures of woodworking projects that inspire awe and jealousy.
+ </p>
+ <div>
+ <span><faceplate-number number="1662"></faceplate-number> weekly visitors</span>
+ <span>·</span>
+ <span> <faceplate-number number="80"></faceplate-number>
+ weekly contributions</span>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div></search-telemetry-tracker><hr><search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;position&quot;:6,&quot;relative_position&quot;:6},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;},&quot;subreddit&quot;:{&quot;id&quot;:&quot;t5_362md&quot;,&quot;name&quot;:&quot;woodworkingtools&quot;,&quot;nsfw&quot;:false,&quot;quarantined&quot;:false}}" view-events="search/view/subreddit"><div data-testid="search-community">
+ <search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;position&quot;:6,&quot;relative_position&quot;:6},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;},&quot;subreddit&quot;:{&quot;id&quot;:&quot;t5_362md&quot;,&quot;name&quot;:&quot;woodworkingtools&quot;,&quot;nsfw&quot;:false,&quot;quarantined&quot;:false}}"><a href="/r/woodworkingtools/">
+ <faceplate-screen-reader-content>woodworkingtools</faceplate-screen-reader-content>
+ </a></search-telemetry-tracker>
+ <div>
+ <span> <div>
+ <div>
+ <span>
+ <span>
+ </span></span>
+ </div>
+ </div> </span>
+ <div>
+ <h2><span data-testid="search-community-title" id="search-community-title-t5_362md">r/woodworkingtools</span></h2>
+ <div>
+ <p data-testid="search-subreddit-desc-text">
+ This is a Subreddit dedicated to all your woodworking tool needs. Including advice, reviews, tips &amp; tricks, general tool bragging, diy shop jigs &amp; tool stands, and everything else you could ever need
+ </p>
+ <div>
+ <span><faceplate-number number="6967"></faceplate-number> weekly visitors</span>
+ <span>·</span>
+ <span> <faceplate-number number="256"></faceplate-number>
+ weekly contributions</span>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div></search-telemetry-tracker><hr><search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;position&quot;:7,&quot;relative_position&quot;:7},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;},&quot;subreddit&quot;:{&quot;id&quot;:&quot;t5_30otgp&quot;,&quot;name&quot;:&quot;WoodworkConfessions&quot;,&quot;nsfw&quot;:false,&quot;quarantined&quot;:false}}" view-events="search/view/subreddit"><div data-testid="search-community">
+ <search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;position&quot;:7,&quot;relative_position&quot;:7},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;},&quot;subreddit&quot;:{&quot;id&quot;:&quot;t5_30otgp&quot;,&quot;name&quot;:&quot;WoodworkConfessions&quot;,&quot;nsfw&quot;:false,&quot;quarantined&quot;:false}}"><a href="/r/WoodworkConfessions/">
+ <faceplate-screen-reader-content>WoodworkConfessions</faceplate-screen-reader-content>
+ </a></search-telemetry-tracker>
+ <div>
+ <span> <div>
+ <div>
+ <span>
+ <span>
+ </span></span>
+ </div>
+ </div> </span>
+ <div>
+ <h2><span data-testid="search-community-title" id="search-community-title-t5_30otgp">r/WoodworkConfessions</span></h2>
+ <div>
+ <p data-testid="search-subreddit-desc-text">
+ Bit off a little more than you could chew? This is a place to vent when your r/Woodworking project didn't turn out as planned.
+ </p>
+ <div>
+ <span><faceplate-number number="1195"></faceplate-number> weekly visitors</span>
+ <span>·</span>
+ <span> <faceplate-number number="2"></faceplate-number>
+ weekly contributions</span>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div></search-telemetry-tracker><hr><search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;position&quot;:8,&quot;relative_position&quot;:8},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;},&quot;subreddit&quot;:{&quot;id&quot;:&quot;t5_2ubqg&quot;,&quot;name&quot;:&quot;turning&quot;,&quot;nsfw&quot;:false,&quot;quarantined&quot;:false}}" view-events="search/view/subreddit"><div data-testid="search-community">
+ <search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;position&quot;:8,&quot;relative_position&quot;:8},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;},&quot;subreddit&quot;:{&quot;id&quot;:&quot;t5_2ubqg&quot;,&quot;name&quot;:&quot;turning&quot;,&quot;nsfw&quot;:false,&quot;quarantined&quot;:false}}"><a href="/r/turning/">
+ <faceplate-screen-reader-content>turning</faceplate-screen-reader-content>
+ </a></search-telemetry-tracker>
+ <div>
+ <span> <div>
+ <div>
+ <span>
+ <span>
+ <img src="https://styles.redditmedia.com/t5_2ubqg/styles/communityIcon_7lw5srf7nv421.png?width=64&amp;frame=1&amp;auto=webp&amp;s=633a85c02fdec03ca88a7a4f0d34ce97d1ffceeb" alt="" width="48">
+ </span></span>
+ </div>
+ </div> </span>
+ <div>
+ <h2><span data-testid="search-community-title" id="search-community-title-t5_2ubqg">r/turning</span></h2>
+ <div>
+ <p data-testid="search-subreddit-desc-text">
+ The Reddit corner for all things woodturning. If you have questions, projects, updates, gripes, or any other spiny wood, resin, or metal related thing, here is the place to post it. 
+Check the /r/turning wiki for answers to some of the most frequently asked questions, including which lathe NOT to buy.
+ </p>
+ <div>
+ <span><faceplate-number number="19381"></faceplate-number> weekly visitors</span>
+ <span>·</span>
+ <span> <faceplate-number number="969"></faceplate-number>
+ weekly contributions</span>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div></search-telemetry-tracker><hr><search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;position&quot;:9,&quot;relative_position&quot;:9},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;},&quot;subreddit&quot;:{&quot;id&quot;:&quot;t5_3c9xq&quot;,&quot;name&quot;:&quot;finishing&quot;,&quot;nsfw&quot;:false,&quot;quarantined&quot;:false}}" view-events="search/view/subreddit"><div data-testid="search-community">
+ <search-telemetry-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;position&quot;:9,&quot;relative_position&quot;:9},&quot;search&quot;:{&quot;safe_search&quot;:&quot;UNAVAILABLE&quot;,&quot;structure_type&quot;:&quot;search&quot;},&quot;subreddit&quot;:{&quot;id&quot;:&quot;t5_3c9xq&quot;,&quot;name&quot;:&quot;finishing&quot;,&quot;nsfw&quot;:false,&quot;quarantined&quot;:false}}"><a href="/r/finishing/">
+ <faceplate-screen-reader-content>finishing</faceplate-screen-reader-content>
+ </a></search-telemetry-tracker>
+ <div>
+ <span> <div>
+ <div>
+ <span>
+ <span>
+ <img src="https://styles.redditmedia.com/t5_3c9xq/styles/communityIcon_r5pdsdp7cvt61.png?width=64&amp;frame=1&amp;auto=webp&amp;s=04164ed1e680189ed1ed804330d54d95e0951d15" alt="" width="48">
+ </span></span>
+ </div>
+ </div> </span>
+ <div>
+ <h2><span data-testid="search-community-title" id="search-community-title-t5_3c9xq">r/finishing</span></h2>
+ <div>
+ <p data-testid="search-subreddit-desc-text">
+ /r/finishing is a forum that encourages the respectful exchange of wood or metal finishing knowledge and projects
+ </p>
+ <div>
+ <span><faceplate-number number="30898"></faceplate-number> weekly visitors</span>
+ <span>·</span>
+ <span> <faceplate-number number="907"></faceplate-number>
+ weekly contributions</span>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div></search-telemetry-tracker><hr>
+ <faceplate-partial src="/svc/shreddit/search/?q=woodworking&amp;type=communities&amp;cursor=eyJjYW5kaWRhdGVzX3JldHVybmVkIjoie1wic2VjdGlvbl8xX3BpcGVsaW5lXzBfZ2xvYmFsX21vZGlmaWVyc1wiOlwiMVwiLFwic2VjdGlvbl8xX3BpcGVsaW5lXzFfbG9jYWxfbW9kaWZpZXJzXCI6XCIwXCIsXCJzZWN0aW9uXzJfcGlwZWxpbmVfMF9zdWJyZWRkaXRfc2VhcmNoXCI6XCIxMFwifSIsImV4cGVyaWVuY2Vfc2VsZWN0aW9uIjoiY29tbXVuaXR5IiwiZXhwZXJpZW5jZV92ZXJzaW9uIjoiZGVmYXVsdCIsInNlY3Rpb25fMl9waXBlbGluZV8wX3N1YnJlZGRpdF9zZWFyY2giOiIxMCJ9">
+ <div role="article">
+ <div>
+ <div>
+ <div></div>
+ <div></div>
+ </div>
+ <div>
+ <div></div>
+ <div></div>
+ </div>
+ <div>
+ <div></div>
+ <div></div>
+ <div></div>
+ </div>
+ </div>
+ <hr>
+ </div>
+ <div role="article">
+ <div>
+ <div>
+ <div></div>
+ <div></div>
+ </div>
+ <div>
+ <div></div>
+ <div></div>
+ </div>
+ <div>
+ <div></div>
+ <div></div>
+ <div></div>
+ </div>
+ </div>
+ <hr>
+ </div>
+ <div role="article">
+ <div>
+ <div>
+ <div></div>
+ <div></div>
+ </div>
+ <div>
+ <div></div>
+ <div></div>
+ </div>
+ <div>
+ <div></div>
+ <div></div>
+ <div></div>
+ </div>
+ </div>
+ <hr>
+ </div>
+ </faceplate-partial>
+ </div>
+ </main><div>
+ <ul>
+ <li>
+ <faceplate-tracker>
+ <a href="https://www.redditinc.com/policies/content-policy">Reddit Rules</a>
+ </faceplate-tracker>
+ </li><li>
+ <faceplate-tracker>
+ <a href="https://www.reddit.com/policies/privacy-policy">Privacy Policy</a>
+ </faceplate-tracker>
+ </li><li>
+ <faceplate-tracker>
+ <a href="https://www.redditinc.com/policies/user-agreement">User Agreement</a>
+ </faceplate-tracker>
+ </li><li>
+ <faceplate-tracker>
+ <a href="https://support.reddithelp.com/hc/articles/43980704794004">Your Privacy Choices</a>
+ </faceplate-tracker>
+ </li><li>
+ <faceplate-tracker>
+ <a href="https://support.reddithelp.com/hc/sections/38303584022676-Accessibility">Accessibility</a>
+ </faceplate-tracker><span>•</span>
+ </li><li>
+ <a href="https://redditinc.com">Reddit, Inc. © 2026. All rights reserved.</a>
+ </li>
+ </ul>
+ </div></div>
+ </div><div id="left-sidebar-container">
+ <faceplate-tracker>
+ <div>
+ <img src="https://i.redd.it/cms/b306fd8870bfee4b_snoo_map.png" alt="">
+ <p>
+ Join the most real place on the internet
+ </p>
+ <div>
+ <div>
+ <!-- This div is used to avoid cumulative layout shift while the client-side component(s) are loading -->
+ <div>
+ <auth-flow-sso-buttons>
+ </auth-flow-sso-buttons>
+ </div>
+ <auth-flow-link>
+ <faceplate-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;type&quot;:&quot;phone_auth&quot;}}"> <div>
+ <div>
+ <span>
+ Continue with Phone Number
+ </span>
+ </div>
+ </div></faceplate-tracker>
+ </auth-flow-link>
+ <auth-flow-link>
+ <faceplate-tracker data-faceplate-tracking-context="{&quot;action_info&quot;:{&quot;type&quot;:&quot;register-email-only&quot;}}"> <div>
+ <div>
+ <span>
+ Continue with Email
+ </span>
+ </div>
+ </div></faceplate-tracker>
+ </auth-flow-link>
+ </div>
+ </div>
+ <p>
+ By continuing, you agree to our
+ <a href="https://www.redditinc.com/policies/user-agreement">
+ <ac-track></ac-track>
+ User Agreement
+ </a>
+ and acknowledge that you understand the
+ <a href="https://www.redditinc.com/policies/privacy-policy">
+ <ac-track></ac-track>
+ Privacy Policy</a>.
+ </p>
+ </div>
+ </faceplate-tracker>
+ </div></div></search-telemetry-tracker>
+ </div>
+ </search-dynamic-id-cache-controller> 
+ <div>
+ <template id="deferred-experiences-batch">
+ </template>
+ <ac-dispatch></ac-dispatch><ac-dispatch></ac-dispatch>
+ </div>
+ <!-- routable page end --><faceplate-perfmetric-collector>
+ <data></data> <data></data> <data></data> <data></data>
+ </faceplate-perfmetric-collector> 
+ </shreddit-app>
+ <img src="https://id.rlcdn.com/472486.gif">
+ <navigation-indicator></navigation-indicator>
+ <suspense-execute-deferred-scripts></suspense-execute-deferred-scripts></body></html>

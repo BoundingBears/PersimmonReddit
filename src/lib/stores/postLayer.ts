@@ -16,6 +16,7 @@ import { browser } from '$app/environment';
 import { goto, pushState } from '$app/navigation';
 import { page } from '$app/stores';
 import { trackNavigation } from './session';
+import { stopInlineVideo } from './inlineVideo';
 import type { Post } from '$lib/reddit/types';
 
 // What the list already knows about a post, so the layer can draw the title
@@ -28,6 +29,8 @@ export function seedFor(id: string): Post | undefined {
 }
 
 export function openPost(id: string, seed?: Post): void {
+	// A video playing in the feed would go on playing under the post.
+	stopInlineVideo();
 	if (seed) {
 		seeds.delete(id);
 		seeds.set(id, seed);

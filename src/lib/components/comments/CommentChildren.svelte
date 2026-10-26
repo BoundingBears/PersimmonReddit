@@ -12,7 +12,11 @@
 	let { nodes = $bindable(), linkFullId, opAuthor }: Props = $props();
 
 	function expandStub(index: number, replacement: Node[]) {
-		nodes = [...nodes.slice(0, index), ...replacement, ...nodes.slice(index + 1)];
+		// Replies read from a comment's page include any the thread already
+		// showed; the same comment twice would break the list.
+		const shown = new Set(nodes.flatMap((n) => (n.kind === 'comment' ? [n.fullId] : [])));
+		const fresh = replacement.filter((n) => n.kind !== 'comment' || !shown.has(n.fullId));
+		nodes = [...nodes.slice(0, index), ...fresh, ...nodes.slice(index + 1)];
 	}
 </script>
 

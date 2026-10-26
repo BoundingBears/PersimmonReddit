@@ -99,6 +99,9 @@ export interface MoreStub {
 	count: number; // total hidden replies under this stub
 	childIds: string[]; // base36 ids to load
 	depth: number;
+	// Set instead of childIds on a thread read from Reddit's web pages
+	// (pageReader.ts): the page that has these replies on it.
+	href?: string;
 }
 
 export type CommentNode = Comment | MoreStub;
@@ -111,6 +114,8 @@ export interface Subreddit {
 	descriptionHtml: string;
 	subscribers: number;
 	activeUserCount: number;
+	// Read from Reddit's search page, which gives this instead of a member count.
+	weeklyVisitors?: number;
 	createdUtc: number;
 	over18: boolean;
 	iconImg?: string;

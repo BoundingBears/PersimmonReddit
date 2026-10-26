@@ -8,7 +8,16 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { moreAfter, postsFromPage, seconds, threadFromPage } from './pageReader';
+import {
+	moreAfter,
+	postsFromPage,
+	repliesFromPage,
+	searchPostsFromPage,
+	searchSubredditsFromPage,
+	seconds,
+	shiftDepth,
+	threadFromPage
+} from './pageReader';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const page = (name: string) => readFileSync(resolve(here, '__fixtures__', name), 'utf8');
@@ -171,6 +180,87 @@ describe('the "load more" address', () => {
 	});
 });
 
+describe('replies left off a post page', () => {
+	it('each comment with more replies gets a stub pointing at its own page', () => {
+		const { comments } = threadFromPage(page('post-page.html'));
+		const stubs = comments.flatMap((c) => c.replies.filter((r) => r.kind === 'more'));
+		expect(stubs.length).toBeGreaterThan(0);
+		for (const s of stubs) {
+			if (s.kind !== 'more') continue;
+			expect(s.href).toMatch(/^\/r\/okbuddyphd\/comments\/1wfjght\/comment\/[a-z0-9]+\//);
+			expect(s.depth).toBe(1);
+			expect(comments.some((c) => c.fullId === s.parentFullId)).toBe(true);
+		}
+	});
+
+	const c = (id: string, depth: number, more = false) =>
+		`<shreddit-comment thingid="t1_${id}" depth="${depth}" author="a" score="1" created="2026-10-13T14:16:15.852000+0000"><div slot="comment"><div id="t1_${id}-post-rtjson-content"><p>${id}</p></div></div>` +
+		(more ? `<a slot="more-comments-permalink" href="/r/x/comments/p/comment/${id}/?force-legacy-sct=1">more replies</a>` : '');
+	// A comment's own page: the comment at depth 0, its replies under it.
+	const commentPage = `${c('focus', 0)}${c('r1', 1)}${c('r1a', 2, true)}</shreddit-comment></shreddit-comment>${c('r2', 1)}</shreddit-comment></shreddit-comment>`;
+
+	it("reads the replies off the comment's page", () => {
+		const found = repliesFromPage(commentPage, 't1_focus')!;
+		expect(found.depth).toBe(0);
+		expect(found.replies.map((n) => (n.kind === 'comment' ? n.id : 'stub'))).toEqual(['r1', 'r2']);
+		const r1 = found.replies[0];
+		expect(r1.kind === 'comment' && r1.replies.map((n) => (n.kind === 'comment' ? n.id : n.href))).toEqual(['r1a']);
+		const r1a = r1.kind === 'comment' ? r1.replies[0] : null;
+		expect(r1a?.kind === 'comment' && r1a.replies[0]).toMatchObject({ kind: 'more', depth: 3, parentFullId: 't1_r1a' });
+	});
+
+	it('puts them at the right depth in the thread on screen', () => {
+		const found = repliesFromPage(commentPage, 't1_focus')!;
+		const placed = shiftDepth(found.replies, 2 - found.depth);
+		const depths = (nodes: typeof placed): number[] => nodes.flatMap((n) => [n.depth, ...(n.kind === 'comment' ? depths(n.replies) : [])]);
+		expect(depths(placed)).toEqual([3, 4, 5, 3]);
+	});
+
+	it("drops the comment's link back to the page it came from", () => {
+		const selfLinked = `${c('focus', 0, true)}${c('r1', 1)}</shreddit-comment></shreddit-comment>`;
+		const found = repliesFromPage(selfLinked, 't1_focus')!;
+		expect(found.replies.map((n) => n.kind)).toEqual(['comment']);
+	});
+
+	it('is null when the comment is not on the page', () => {
+		expect(repliesFromPage(commentPage, 't1_nope')).toBeNull();
+		expect(repliesFromPage('<html></html>', 't1_focus')).toBeNull();
+	});
+});
+
+describe('a search page', () => {
+	it('has post results with what a row needs, once each', () => {
+		const { items, more } = searchPostsFromPage(page('search-posts.html'));
+		expect(items.length).toBe(7);
+		expect(new Set(items.map((p) => p.id)).size).toBe(7);
+		for (const p of items) {
+			expect(p.fullId).toBe(`t3_${p.id}`);
+			expect(p.title.length).toBeGreaterThan(0);
+			expect(p.permalink).toMatch(new RegExp(`^/r/${p.subreddit}/comments/${p.id}/`));
+			expect(p.author.length).toBeGreaterThan(0);
+			expect(p.createdUtc).toBeGreaterThan(1_500_000_000);
+		}
+		const first = items[0];
+		expect(first).toMatchObject({ id: '1k31h6m', subreddit: 'Workbenches', author: 'ThatVita_struggle', score: 407, numComments: 58 });
+		expect(more).toMatch(/^\/svc\/shreddit\/search\/\?.*cursor=/);
+	});
+
+	it('has community results', () => {
+		const subs = searchSubredditsFromPage(page('search-communities.html'));
+		expect(subs.length).toBe(10);
+		expect(subs[0]).toMatchObject({ name: 'woodworking', displayName: 'r/woodworking', over18: false });
+		expect(subs[0].weeklyVisitors).toBeGreaterThan(100_000);
+		expect(subs[0].publicDescription).toMatch(/woodworking/i);
+		expect(subs[0].communityIcon).toMatch(/^https:\/\//);
+		expect(new Set(subs.map((s) => s.name.toLowerCase())).size).toBe(subs.length);
+	});
+
+	it('an empty or strange page gives no results rather than an error', () => {
+		expect(searchPostsFromPage('<html></html>')).toEqual({ items: [], more: null });
+		expect(searchSubredditsFromPage('<html></html>')).toEqual([]);
+	});
+});
+
 describe('seconds', () => {
 	it("reads Reddit's timestamps", () => {
 		expect(seconds('2026-10-05T08:37:14.447000+0000')).toBe(Date.UTC(2026, 9, 5, 8, 37, 14) / 1000);
@@ -178,5 +268,61 @@ describe('seconds', () => {
 		expect(seconds('2026-10-05T08:37:14Z')).toBe(Date.UTC(2026, 9, 5, 8, 37, 14) / 1000);
 		expect(seconds(null)).toBe(0);
 		expect(seconds('yesterday')).toBe(0);
+	});
+});
+
+// The app reads Reddit as a desktop browser (client.ts, getPage), and the
+// desktop pages are laid out a little differently from the mobile ones above.
+// Saved 2026-10-25.
+describe('the desktop pages the app actually reads', () => {
+	it('a subreddit page and its "load more" piece', () => {
+		const first = postsFromPage(page('desktop-subreddit-page.html'));
+		expect(first.items.length).toBeGreaterThan(0);
+		expect(first.after).toMatch(/^t3_[a-z0-9]+$/);
+		expect(first.more).toMatch(/community-more-posts/);
+		const more = postsFromPage(page('desktop-subreddit-more.html'));
+		expect(more.items.length).toBeGreaterThanOrEqual(10);
+		for (const p of [...first.items, ...more.items]) {
+			expect(p.fullId).toBe(`t3_${p.id}`);
+			expect(p.title.length).toBeGreaterThan(0);
+			expect(p.subreddit).toBe('okbuddyphd');
+			expect(p.createdUtc).toBeGreaterThan(1_700_000_000);
+		}
+		const kinds = new Set(more.items.map((p) => p.kind));
+		expect(kinds.has('image') || kinds.has('gallery') || kinds.has('video')).toBe(true);
+		// Every video has a stream; a ready-made MP4 comes with some of them.
+		const videos = more.items.filter((p) => p.kind === 'video' && !p.video?.isGif);
+		expect(videos.length).toBeGreaterThan(0);
+		for (const v of videos) expect(v.video?.hlsUrl).toMatch(/HLSPlaylist\.m3u8/);
+		expect(videos.some((v) => /^https:\/\//.test(v.video?.fallbackUrl ?? ''))).toBe(true);
+	});
+
+	it('a post page: comments with some of their replies, and a way to the rest', () => {
+		// This thread has 32 comments in all; the page carries 8 at the top
+		// level, 15 counting replies.
+		const thread = threadFromPage(page('desktop-post-page.html'));
+		expect(thread.post?.id).toBe('1wfjght');
+		expect(thread.comments.length).toBeGreaterThan(5);
+		expect(thread.comments.some((c) => c.replies.some((r) => r.kind === 'more' && !!r.href))).toBe(true);
+		const all = (nodes: typeof thread.comments[number]['replies']): number =>
+			nodes.reduce((n, c) => n + (c.kind === 'comment' ? 1 + all(c.replies) : 0), 0);
+		expect(all(thread.comments)).toBeGreaterThan(10);
+		for (const c of thread.comments) {
+			expect(c.author.length).toBeGreaterThan(0);
+			expect(c.body.length).toBeGreaterThan(0);
+		}
+		expect(thread.total).toBeGreaterThanOrEqual(thread.comments.length);
+	});
+
+	it('search results', () => {
+		const posts = searchPostsFromPage(page('desktop-search-posts.html'));
+		expect(posts.items.length).toBeGreaterThan(0);
+		for (const p of posts.items) {
+			expect(p.permalink).toMatch(/^\/r\/[^/]+\/comments\/[a-z0-9]+\//);
+			expect(p.title.length).toBeGreaterThan(0);
+		}
+		const subs = searchSubredditsFromPage(page('desktop-search-communities.html'));
+		expect(subs.length).toBeGreaterThanOrEqual(5);
+		expect(subs.some((s) => s.name.toLowerCase() === 'woodworking')).toBe(true);
 	});
 });

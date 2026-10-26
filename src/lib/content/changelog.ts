@@ -10,6 +10,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.5.2',
+		items: [
+			'💬 More comments per post, and replies when you tap More replies',
+			'▶️ Videos play again, right in the feed too, and search works again',
+			'⚡ Faster loading, and your subscriptions feed no longer trips Reddit\'s limits'
+		]
+	},
+	{
 		version: '1.5.1',
 		items: [
 			'🚧 Subreddits and comments that Reddit refuses now load another way, and failures are explained in plain words',

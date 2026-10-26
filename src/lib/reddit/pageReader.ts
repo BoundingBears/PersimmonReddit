@@ -24,7 +24,7 @@
 // tests run against pages saved on 2026-10-13.
 
 import { isEmbeddableUrl } from './embeds';
-import type { Comment, GalleryItem, Listing, MediaImage, MediaVideo, Post, PostKind } from './types';
+import type { Comment, CommentNode, GalleryItem, Listing, MediaImage, MediaVideo, Post, PostKind, Subreddit } from './types';
 
 // The page arrives in pieces: the first screenful inline, the rest inside
 // <template> elements that the site's own script moves into place. A query on
@@ -87,6 +87,9 @@ function videoFrom(player: Element, isGif: boolean): MediaVideo | undefined {
 	let width = 0;
 	let height = 0;
 	let duration = 0;
+	// The largest ready-made MP4, picture and sound in one file: the player's
+	// last resort when it cannot use the streams.
+	let packaged: string | undefined;
 	// Reddit's list of ready-made MP4s, used here only for the size and length.
 	try {
 		const packed = JSON.parse(player.getAttribute('packaged-media-json') ?? 'null');
@@ -96,6 +99,7 @@ function videoFrom(player: Element, isGif: boolean): MediaVideo | undefined {
 			if (d?.width > width) {
 				width = d.width;
 				height = d.height ?? 0;
+				if (typeof p?.source?.url === 'string') packaged = p.source.url;
 			}
 		}
 	} catch {
@@ -107,6 +111,7 @@ function videoFrom(player: Element, isGif: boolean): MediaVideo | undefined {
 			// Same signed address, the other manifest. VideoView tries this
 			// first and falls back to the HLS one if it is not there.
 			dashUrl: src.replace('HLSPlaylist.m3u8', 'DASHPlaylist.mpd'),
+			fallbackUrl: packaged,
 			width,
 			height,
 			duration,
@@ -329,15 +334,38 @@ export function threadFromPage(html: string): { post: Post | null; comments: Com
 	const top: Comment[] = [];
 	const open: Comment[] = [];
 	const seen = new Set<string>();
+	const read: Array<[Element, Comment]> = [];
 	for (const el of all(roots, 'shreddit-comment')) {
 		const c = commentFrom(el, post?.author ?? '');
 		if (!c || seen.has(c.id)) continue;
 		seen.add(c.id);
+		read.push([el, c]);
 		open.length = Math.min(open.length, c.depth);
 		const parent = open[c.depth - 1];
 		if (c.depth > 0 && parent) parent.replies.push(c);
 		else top.push(c);
 		open[c.depth] = c;
+	}
+
+	// The page leaves most replies out, and gives each comment that has more a
+	// plain "more replies" link: that comment's own page, which a browser
+	// without the site's script follows to show them. Kept as a stub under the
+	// comment, for the app to follow when it is tapped.
+	for (const [el, c] of read) {
+		const link = [...el.querySelectorAll('a[slot="more-comments-permalink"]')].find(
+			(a) => a.closest('shreddit-comment') === el
+		);
+		const href = link?.getAttribute('href');
+		if (!href || !href.startsWith('/')) continue;
+		c.replies.push({
+			kind: 'more',
+			id: `page-${c.id}`,
+			parentFullId: c.fullId,
+			count: 0,
+			childIds: [],
+			depth: c.depth + 1,
+			href
+		});
 	}
 
 	const tree = all(roots, 'shreddit-comment-tree')[0];
@@ -348,4 +376,150 @@ export function threadFromPage(html: string): { post: Post | null; comments: Com
 		post?.numComments ||
 		top.length;
 	return { post, comments: top, total };
+}
+
+/**
+ * The replies under one comment, from that comment's own page (the "more
+ * replies" link above). `depth` is where the comment sits on that page, which
+ * is not where it sits in the thread on screen; the caller shifts the replies.
+ */
+export function repliesFromPage(html: string, parentFullId: string): { depth: number; replies: CommentNode[] } | null {
+	const find = (nodes: CommentNode[]): Comment | null => {
+		for (const n of nodes) {
+			if (n.kind !== 'comment') continue;
+			if (n.fullId === parentFullId) return n;
+			const hit = find(n.replies);
+			if (hit) return hit;
+		}
+		return null;
+	};
+	const focus = find(threadFromPage(html).comments);
+	if (!focus) return null;
+	// The comment's own "more replies" link points at the page just read, and
+	// following it again would bring nothing new.
+	const replies = focus.replies.filter((n) => n.kind === 'comment' || n.parentFullId !== focus.fullId);
+	return { depth: focus.depth, replies };
+}
+
+/** The same nodes `by` levels deeper (or shallower). */
+export function shiftDepth(nodes: CommentNode[], by: number): CommentNode[] {
+	if (by === 0) return nodes;
+	return nodes.map((n) =>
+		n.kind === 'comment' ? { ...n, depth: n.depth + by, replies: shiftDepth(n.replies, by) } : { ...n, depth: n.depth + by }
+	);
+}
+
+// ---------- Search ----------
+//
+// Reddit's search page (/search/?q=...&type=posts or type=communities) is a
+// different layout from the feeds: no <shreddit-post>, but one block per
+// result, marked with data-testid, and a JSON description of each result in
+// its tracking attribute. Both are read; the JSON fills in what the visible
+// markup does not show (the author, and whether a post is marked NSFW).
+
+function trackingOf(el: Element): Record<string, any> {
+	for (const t of [el, ...el.querySelectorAll('[data-faceplate-tracking-context]')]) {
+		const raw = t.getAttribute('data-faceplate-tracking-context');
+		if (!raw) continue;
+		try {
+			return JSON.parse(raw) ?? {};
+		} catch {
+			// next one
+		}
+	}
+	return {};
+}
+
+// "407 votes", "58 comments", "622,238 weekly visitors": the number is a
+// <faceplate-number number="..."> inside a span that ends with the word.
+function countBefore(el: Element, word: RegExp): number {
+	for (const n of el.querySelectorAll('faceplate-number[number]')) {
+		if (word.test(text(n.parentElement))) return num(n, 'number');
+	}
+	return 0;
+}
+
+function searchPostFrom(unit: Element): Post | null {
+	const link = unit.querySelector('a[data-testid="post-title"]') ?? unit.querySelector('a[href*="/comments/"]');
+	const href = link?.getAttribute('href') ?? '';
+	const m = /^\/r\/([^/]+)\/comments\/([a-z0-9]+)\//i.exec(href);
+	if (!m) return null;
+	const ctx = trackingOf(unit);
+	const title = text(link) || ctx.post?.title;
+	if (!title) return null;
+	// A picture in the result is the post's thumbnail; the subreddit's icon
+	// and people's avatars are pictures too, and are not.
+	const thumb = [...unit.querySelectorAll('img[src]')]
+		.map((i) => i.getAttribute('src') ?? '')
+		.find((u) => /^https:\/\/(preview|external-preview|b\.thumbs|i)\.redd(it\.com|\.it)\//.test(u));
+	return {
+		id: m[2],
+		fullId: `t3_${m[2]}`,
+		kind: 'link',
+		title,
+		subreddit: m[1],
+		author: ctx.profile?.name ?? '[deleted]',
+		permalink: href.split('?')[0],
+		url: `https://www.reddit.com${href.split('?')[0]}`,
+		createdUtc: seconds(unit.querySelector('faceplate-timeago[ts]')?.getAttribute('ts') ?? null),
+		score: countBefore(unit, /votes?\b/i),
+		upvoteRatio: 0,
+		numComments: countBefore(unit, /comments?\b/i),
+		domain: `self.${m[1]}`,
+		over18: !!ctx.post?.nsfw,
+		spoiler: !!ctx.post?.spoiler,
+		stickied: false,
+		locked: false,
+		archived: false,
+		sendReplies: false,
+		thumbnail: thumb
+	};
+}
+
+/** Post results on a search page, and the page's own "more results" address. */
+export function searchPostsFromPage(html: string): { items: Post[]; more: string | null } {
+	const roots = rootsOf(html);
+	const items: Post[] = [];
+	const seen = new Set<string>();
+	const units = all(roots, '[data-testid="search-post-with-content-preview"], [data-testid="search-post-unit"], [data-testid="sdui-post-unit"]');
+	for (const unit of units) {
+		// The outer block contains the inner one; read each post once.
+		const post = searchPostFrom(unit.closest('[data-testid="search-post-with-content-preview"]') ?? unit);
+		if (!post || seen.has(post.id)) continue;
+		seen.add(post.id);
+		items.push(post);
+	}
+	const more = all(roots, 'faceplate-partial[src]')
+		.map((p) => p.getAttribute('src') ?? '')
+		.find((s) => /^\/svc\/shreddit\/search\//.test(s) && /[?&]cursor=/.test(s));
+	return { items, more: more ?? null };
+}
+
+/** Community results on a search page. */
+export function searchSubredditsFromPage(html: string): Subreddit[] {
+	const out: Subreddit[] = [];
+	const seen = new Set<string>();
+	for (const unit of all(rootsOf(html), '[data-testid="search-community"]')) {
+		const href = unit.querySelector('a[href^="/r/"]')?.getAttribute('href') ?? '';
+		const name = /^\/r\/([^/?#]+)\/?$/.exec(href)?.[1];
+		if (!name || seen.has(name.toLowerCase())) continue;
+		seen.add(name.toLowerCase());
+		const ctx = trackingOf(unit);
+		const icon = [...unit.querySelectorAll('img[src]')].map((i) => i.getAttribute('src') ?? '').find(Boolean);
+		const about = text(unit.querySelector('[data-testid="search-subreddit-desc-text"]'));
+		out.push({
+			name,
+			displayName: `r/${name}`,
+			title: name,
+			publicDescription: about,
+			descriptionHtml: '',
+			subscribers: 0,
+			activeUserCount: 0,
+			weeklyVisitors: countBefore(unit, /visitors?\b/i) || undefined,
+			createdUtc: 0,
+			over18: !!ctx.subreddit?.nsfw,
+			communityIcon: icon
+		});
+	}
+	return out;
 }

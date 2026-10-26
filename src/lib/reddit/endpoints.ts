@@ -3,7 +3,15 @@
 
 import { getJson, getPage, postForm } from './client';
 import { failure, worthRetrying } from './failure';
-import { moreAfter, postsFromPage, threadFromPage } from './pageReader';
+import {
+	moreAfter,
+	postsFromPage,
+	repliesFromPage,
+	searchPostsFromPage,
+	searchSubredditsFromPage,
+	shiftDepth,
+	threadFromPage
+} from './pageReader';
 import {
 	parseCommentListing,
 	parsePostListing,
@@ -15,6 +23,7 @@ import {
 	parseUserOverview
 } from './parsers';
 import type {
+	Comment,
 	CommentNode,
 	CommentSort,
 	Listing,
@@ -53,10 +62,12 @@ function map<T, U>(r: Result<T>, fn: (v: T) => U): Result<U> {
 export async function getSubmissions(
 	sort: Sort = 'hot',
 	subreddit?: string,
-	opts?: { limit?: number; after?: string; t?: TimeRange }
+	opts?: { limit?: number; after?: string; t?: TimeRange; light?: boolean }
 ): Promise<Result<Listing<Post>>> {
 	const path = subreddit ? `/r/${subreddit}/${sort}.json` : `/${sort}.json`;
-	const viaData = async (quick: boolean) => map(await getJson<any>(path, defaults(opts), { quick }), parsePostListing);
+	// `light` is for the page route only, not a query parameter.
+	const { light: _light, ...query } = opts ?? {};
+	const viaData = async (quick: boolean) => map(await getJson<any>(path, defaults(query), { quick }), parsePostListing);
 
 	// Reddit refuses the data route for whole subreddits now, and for most
 	// requests past the first page of any feed, while still serving the web
@@ -64,17 +75,14 @@ export async function getSubmissions(
 	// route, the page if that is refused, and only if the page fails as well
 	// the data route again with everything it has (retries, the saved copy).
 	const key = `${(subreddit ?? '').toLowerCase()}/${sort}`;
-	if ((refusedUntil.get(key) ?? 0) < Date.now()) {
+	if (dataRouteLikelyOpen()) {
 		const quick = await viaData(true);
 		if (quick.ok) return quick;
 		if (!pageWorthTrying(quick.error)) return worthRetrying(quick.error.kind ?? 'unreadable') ? viaData(false) : quick;
+		dataRouteRefused();
 	}
 	const page = await readFeedPages(key, sort, subreddit, opts);
-	if (page.ok) {
-		refusedUntil.set(key, Date.now() + REFUSAL_MEMORY_MS);
-		return page;
-	}
-	refusedUntil.delete(key);
+	if (page.ok) return page;
 	return viaData(false);
 }
 
@@ -82,11 +90,23 @@ export async function getSubmissions(
 
 type Failed = Extract<Result<unknown>, { ok: false }>['error'];
 
-// A feed that was refused a moment ago will be refused again: go to its page
-// directly for a while instead of asking and being told no each time the user
-// scrolls.
-const REFUSAL_MEMORY_MS = 10 * 60_000;
-const refusedUntil = new Map<string, number>();
+// Reddit refuses the data route for the whole connection, not one feed at a
+// time: by October 2026 a signed-out Chrome on the same network got the same
+// block page. So one refusal sends everything to the web pages first for a
+// while, instead of asking, waiting and being told no on every screen. Every
+// so often the data route is asked again, in case it has reopened. (A first
+// page that does come through is no sign of that: Reddit serves a few popular
+// addresses from its cache to everyone.)
+const DATA_ROUTE_PAUSE_MS = 10 * 60_000;
+let dataRouteClosedUntil = 0;
+
+/** Whether the data route is worth a try right now (see above). */
+export function dataRouteLikelyOpen(): boolean {
+	return Date.now() >= dataRouteClosedUntil;
+}
+function dataRouteRefused(): void {
+	dataRouteClosedUntil = Date.now() + DATA_ROUTE_PAUSE_MS;
+}
 // Each feed page's own "load more" address, as last seen on the page.
 const moreAddress = new Map<string, string>();
 
@@ -107,7 +127,9 @@ async function readFeedPages(
 	key: string,
 	sort: Sort,
 	subreddit: string | undefined,
-	opts?: { after?: string; t?: TimeRange }
+	// light: the page's own first few posts and nothing more, one request.
+	// For a feed merged from many subreddits, where a few from each is plenty.
+	opts?: { after?: string; t?: TimeRange; light?: boolean }
 ): Promise<Result<Listing<Post>>> {
 	const pagePath = subreddit ? `/r/${subreddit}/${sort}/` : `/${sort}/`;
 	const readPage = async () => {
@@ -136,7 +158,7 @@ async function readFeedPages(
 		if (!page.ok) return page;
 		first = page.data;
 		if (first.items.length === 0) return { ok: false, error: failure('unreadable') };
-		if (!first.after) return { ok: true, data: { items: first.items, after: null, before: null } };
+		if (!first.after || opts?.light) return { ok: true, data: { items: first.items, after: null, before: null } };
 	}
 	let src = moreAddress.get(key) ?? knownMore();
 	if (!src) {
@@ -163,6 +185,9 @@ async function readFeedPages(
 	};
 }
 
+const MERGE_CONCURRENCY = 4;
+const MERGE_LIGHT_ABOVE = 8;
+
 // Merge a feed across multiple subreddits without using Reddit's multireddit
 // endpoint (`/r/sub1+sub2/...`), which now requires OAuth and 301-redirects to
 // the homepage when called unauthenticated. We fetch each sub in parallel and
@@ -184,9 +209,20 @@ export async function getMergedSubmissions(
 		return { ok: true, data: { after: null, before: null, items: [] } };
 	}
 	const perSub = opts?.limitPerSub ?? 25;
-	const results = await Promise.all(
-		subs.map((s) => getSubmissions(sort, s, { limit: perSub, t: opts?.t }))
-	);
+	// Not all at once: forty subscriptions used to mean forty requests in the
+	// same instant (eighty by the page route), which is how an address gets
+	// rate limited. A few at a time, and with many subreddits only the first
+	// posts of each, which the merge needs no more than.
+	const light = subs.length > MERGE_LIGHT_ABOVE;
+	const results: Result<Listing<Post>>[] = new Array(subs.length);
+	let next = 0;
+	const worker = async () => {
+		while (next < subs.length) {
+			const i = next++;
+			results[i] = await getSubmissions(sort, subs[i], { limit: perSub, t: opts?.t, light });
+		}
+	};
+	await Promise.all(Array.from({ length: Math.min(MERGE_CONCURRENCY, subs.length) }, worker));
 
 	const lists: Post[][] = [];
 	const failures: Array<Extract<Result<unknown>, { ok: false }>['error']> = [];
@@ -259,9 +295,12 @@ export async function getSubmissionComments(
 		map(await getJson<any>(`/comments/${id}.json`, defaults(opts), { quick }), parseSubmissionAndComments);
 	if (how.whole) return viaData(false);
 
-	const quick = await viaData(true);
-	if (quick.ok) return quick;
-	if (!pageWorthTrying(quick.error)) return worthRetrying(quick.error.kind ?? 'unreadable') ? viaData(false) : quick;
+	if (dataRouteLikelyOpen()) {
+		const quick = await viaData(true);
+		if (quick.ok) return quick;
+		if (!pageWorthTrying(quick.error)) return worthRetrying(quick.error.kind ?? 'unreadable') ? viaData(false) : quick;
+		dataRouteRefused();
+	}
 
 	const sort = opts?.sort && opts.sort !== 'best' && opts.sort !== 'confidence' ? { sort: opts.sort } : undefined;
 	const html = await getPage(`/comments/${id}/`, sort);
@@ -276,6 +315,66 @@ export async function getSubmissionComments(
 		}
 	}
 	return viaData(false);
+}
+
+/**
+ * The replies under a comment in a thread read from the web pages: the page
+ * behind the comment's "more replies" link (pageReader.ts), placed one level
+ * under `parentDepth`. Those replies come with links of their own for the
+ * level after.
+ */
+// Reddit's page for a thread carries only its first dozen or so comments,
+// and the request the site makes for the rest is not one the app makes. But
+// each sort order puts a different dozen first, so reading the thread's page
+// under the other orders turns up comments not yet on screen.
+const OTHER_SORTS: CommentSort[] = ['top', 'new', 'controversial', 'old', 'qa'];
+
+/**
+ * Top-level comments of a thread that are not in `have`, gathered from its
+ * page under the sort orders other than `current`, each with whatever
+ * replies and "more replies" links that page had.
+ */
+export async function getMoreCommentsFromPages(
+	id: string,
+	have: Set<string>,
+	current: CommentSort
+): Promise<Result<Comment[]>> {
+	const sorts = OTHER_SORTS.filter((s) => s !== current && !(current === 'best' && s === 'confidence'));
+	const found: Comment[] = [];
+	const seen = new Set(have);
+	let answered = 0;
+	let lastError: Failed | null = null;
+	// Two at a time: quick, without asking Reddit for five pages at once.
+	for (let i = 0; i < sorts.length; i += 2) {
+		const pages = await Promise.all(sorts.slice(i, i + 2).map((sort) => getPage(`/comments/${id}/`, { sort })));
+		for (const page of pages) {
+			if (!page.ok) {
+				lastError = page.error;
+				continue;
+			}
+			answered++;
+			for (const c of threadFromPage(page.data).comments) {
+				if (seen.has(c.id)) continue;
+				seen.add(c.id);
+				found.push(c);
+			}
+		}
+	}
+	if (answered === 0 && lastError) return { ok: false, error: lastError };
+	return { ok: true, data: found };
+}
+
+export async function getRepliesFromPage(
+	href: string,
+	parentFullId: string,
+	parentDepth: number
+): Promise<Result<CommentNode[]>> {
+	const url = new URL(href, 'https://www.reddit.com');
+	const html = await getPage(url.pathname, Object.fromEntries(url.searchParams));
+	if (!html.ok) return html;
+	const found = repliesFromPage(html.data, parentFullId);
+	if (!found) return { ok: false, error: failure('unreadable') };
+	return { ok: true, data: shiftDepth(found.replies, parentDepth - found.depth) };
 }
 
 // Expand "load more comments" stubs. We *do not* use /api/morechildren even
@@ -343,16 +442,61 @@ export async function searchPosts(
 	const path = subreddit ? `/r/${subreddit}/search.json` : '/search.json';
 	const params: Record<string, string | number | boolean> = { q, type: 'link', ...rest };
 	if (subreddit) params.restrict_sr = 'on';
-	const r = await getJson<any>(path, defaults(params));
-	return map(r, parsePostListing);
+	const viaData = async (quick: boolean) => map(await getJson<any>(path, defaults(params), { quick }), parsePostListing);
+	// Page by page there is nothing to continue from here, so a later page
+	// of results only comes by the data route.
+	if (opts?.after) return viaData(false);
+	if (dataRouteLikelyOpen()) {
+		const quick = await viaData(true);
+		if (quick.ok) return quick;
+		if (!pageWorthTrying(quick.error)) return worthRetrying(quick.error.kind ?? 'unreadable') ? viaData(false) : quick;
+		dataRouteRefused();
+	}
+	// Reddit's search page, and then its "more results" piece: the page alone
+	// has only the first few.
+	const pageParams: Record<string, string> = { q, type: 'posts' };
+	if (opts?.sort) pageParams.sort = opts.sort;
+	if (opts?.t) pageParams.t = opts.t;
+	const html = await getPage(subreddit ? `/r/${subreddit}/search/` : '/search/', pageParams);
+	if (html.ok) {
+		const first = searchPostsFromPage(html.data);
+		let items = first.items;
+		if (first.more) {
+			const url = new URL(first.more, 'https://www.reddit.com');
+			const next = await getPage(url.pathname, Object.fromEntries(url.searchParams));
+			if (next.ok) {
+				const seen = new Set(items.map((p) => p.id));
+				items = [...items, ...searchPostsFromPage(next.data).items.filter((p) => !seen.has(p.id))];
+			}
+		}
+		if (items.length > 0 || /search-results-page|search-telemetry-tracker/.test(html.data)) {
+			return { ok: true, data: { items, after: null, before: null } };
+		}
+	}
+	return viaData(false);
 }
 
 export async function searchSubreddits(
 	q: string,
 	opts?: { limit?: number; after?: string }
 ): Promise<Result<Listing<Subreddit>>> {
-	const r = await getJson<any>('/subreddits/search.json', defaults({ q, ...opts }));
-	return map(r, parseSubredditListing);
+	const viaData = async (quick: boolean) =>
+		map(await getJson<any>('/subreddits/search.json', defaults({ q, ...opts }), { quick }), parseSubredditListing);
+	if (opts?.after) return viaData(false);
+	if (dataRouteLikelyOpen()) {
+		const quick = await viaData(true);
+		if (quick.ok) return quick;
+		if (!pageWorthTrying(quick.error)) return worthRetrying(quick.error.kind ?? 'unreadable') ? viaData(false) : quick;
+		dataRouteRefused();
+	}
+	const html = await getPage('/search/', { q, type: 'communities' });
+	if (html.ok) {
+		const items = searchSubredditsFromPage(html.data).slice(0, opts?.limit ?? 25);
+		if (items.length > 0 || /search-results-page|search-telemetry-tracker/.test(html.data)) {
+			return { ok: true, data: { items, after: null, before: null } };
+		}
+	}
+	return viaData(false);
 }
 
 export async function searchUsers(

@@ -36,6 +36,8 @@ export function longPress(node: HTMLElement, options: LongPressOptions) {
 		timer = setTimeout(() => {
 			timer = null;
 			fired = true;
+			// A selection the WebView started at the same moment.
+			window.getSelection()?.removeAllRanges();
 			haptic(ImpactStyle.Medium);
 			opts.onLongPress();
 		}, duration);
@@ -76,6 +78,16 @@ export function longPress(node: HTMLElement, options: LongPressOptions) {
 		}
 	}
 
+	// Holding a card means "actions for this post", not "select this text".
+	// Both used to happen at once: the text was highlighted with the system's
+	// Copy / Share bar on top of the action sheet. The text a person may want
+	// to copy is on the post itself, where it stays selectable.
+	node.style.userSelect = 'none';
+	node.style.setProperty('-webkit-user-select', 'none');
+	node.style.setProperty('-webkit-touch-callout', 'none');
+	const noMenu = (e: Event) => e.preventDefault();
+	node.addEventListener('contextmenu', noMenu);
+
 	node.addEventListener('pointerdown', down);
 	node.addEventListener('pointermove', move);
 	node.addEventListener('pointerup', up);
@@ -92,6 +104,7 @@ export function longPress(node: HTMLElement, options: LongPressOptions) {
 			node.removeEventListener('pointerup', up);
 			node.removeEventListener('pointercancel', cancel);
 			node.removeEventListener('click', click, true);
+			node.removeEventListener('contextmenu', noMenu);
 			cancel();
 		}
 	};

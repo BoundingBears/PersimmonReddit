@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { UNEXPECTED } from '$lib/reddit/failure';
 	import Icon from '$lib/components/shared/Icon.svelte';
-	import { getMoreChildren } from '$lib/reddit/endpoints';
+	import { getMoreChildren, getRepliesFromPage } from '$lib/reddit/endpoints';
 	import type { CommentNode, MoreStub } from '$lib/reddit/types';
 
 	interface Props {
@@ -20,6 +20,7 @@
 
 	async function load() {
 		if (loading) return;
+		if (stub.href) return loadFromPage(stub.href);
 		const slice = stub.childIds.slice(0, BATCH_SIZE);
 		const rest = stub.childIds.slice(BATCH_SIZE);
 		loading = true;
@@ -51,6 +52,26 @@
 			loading = false;
 		}
 	}
+
+	// A thread read from Reddit's web pages: the replies are on the comment's
+	// own page (endpoints.ts), all of them, with stubs of their own below.
+	async function loadFromPage(href: string) {
+		loading = true;
+		error = null;
+		try {
+			const r = await getRepliesFromPage(href, stub.parentFullId, stub.depth - 1);
+			if (!r.ok) {
+				error = r.error.message;
+				return;
+			}
+			onLoaded(r.data);
+		} catch (e) {
+			console.error('replies from page failed', e);
+			error = UNEXPECTED;
+		} finally {
+			loading = false;
+		}
+	}
 </script>
 
 <button class="more" onclick={load} disabled={loading} style:padding-left="{stub.depth * 12 + 12}px">
@@ -58,7 +79,9 @@
 	{#if loading}
 		Loading…
 	{:else if error}
-		Failed: {error}. Tap to retry.
+		{error} Tap to try again.
+	{:else if stub.href}
+		More replies
 	{:else if remaining > 0}
 		Load {toLoadCount} more (of {stub.count})
 	{:else}

@@ -139,7 +139,9 @@
 			{/if}
 			<div class="meta">
 				<div class="name">r/{s.name}</div>
-				<div class="stats">{formatScore(s.subscribers)} members</div>
+				<div class="stats">
+					{s.subscribers || !s.weeklyVisitors ? `${formatScore(s.subscribers)} members` : `${formatScore(s.weeklyVisitors)} weekly visitors`}
+				</div>
 				{#if s.publicDescription}
 					<div class="desc">{s.publicDescription}</div>
 				{/if}

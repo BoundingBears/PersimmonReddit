@@ -38,6 +38,7 @@
 	import { isPrivate, privatePosts } from '$lib/stores/privatePosts';
 	import { introPlaying, mirrorIntroPref, shouldPlayIntro } from '$lib/utils/bootIntro';
 	import { noteNavigation, seedFor } from '$lib/stores/postLayer';
+	import { stopInlineVideo } from '$lib/stores/inlineVideo';
 	import { setActiveScroller } from '$lib/utils/scroller';
 	import PostActionSheet from '$lib/components/shared/PostActionSheet.svelte';
 	import WhatsNew from '$lib/components/shared/WhatsNew.svelte';
@@ -131,6 +132,7 @@
 	// popstate-back pops it (so the next back-swipe peek is the page further
 	// back in history, not the one we just popped). See pageSnapshot.ts.
 	beforeNavigate((nav) => {
+		stopInlineVideo();
 		if (nav.type === 'popstate' && (nav.delta ?? 0) < 0) {
 			popPageSnapshot();
 		} else {
@@ -314,6 +316,8 @@
 		// background colour until the first touch. Committing any change makes
 		// the compositor produce a frame, which is all the touch was doing.
 		const onShow = () => {
+			// Going to the background: a video playing in the feed stops.
+			if (document.visibilityState === 'hidden') stopInlineVideo();
 			if (document.visibilityState !== 'visible') return;
 			requestAnimationFrame(() => {
 				const nudge = document.createElement('div');
